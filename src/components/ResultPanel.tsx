@@ -82,7 +82,7 @@ function Row({
 
   if (!detail) {
     return (
-      <div className="flex items-baseline justify-between gap-3 py-1.5">
+      <div className="flex items-baseline justify-between gap-3 px-2 py-1.5">
         <span className={labelClass}>
           {label}
           {hint ? <span className="ml-1 text-xs text-slate-400">{hint}</span> : null}
@@ -97,18 +97,28 @@ function Row({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-baseline justify-between gap-3 py-1.5 text-left"
+        aria-expanded={open}
+        className={`flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left transition-colors ${
+          open ? 'bg-emerald-50' : 'hover:bg-slate-100/70'
+        }`}
       >
         <span className={labelClass}>
-          <span className="mr-1 inline-block text-[10px] text-slate-400">
-            {open ? '▾' : '▸'}
-          </span>
-          <span className="underline decoration-dotted decoration-slate-300 underline-offset-2">
-            {label}
-          </span>
+          {label}
           {hint ? <span className="ml-1 text-xs text-slate-400">{hint}</span> : null}
         </span>
-        <span className={valueClass}>{value}</span>
+        <span className="flex shrink-0 items-center gap-2">
+          <span className={valueClass}>{value}</span>
+          <span
+            className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] leading-none transition-transform ${
+              open
+                ? 'rotate-180 bg-emerald-600 text-white'
+                : 'bg-emerald-100 text-emerald-700'
+            }`}
+            aria-hidden
+          >
+            ▼
+          </span>
+        </span>
       </button>
       {open && <Detail rows={detail} />}
     </div>
@@ -122,9 +132,14 @@ export function ResultPanel({ result }: { result: TaxResult }) {
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-baseline justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">概算結果</h2>
-        <span className="text-xs text-slate-400">タップで計算根拠を表示</span>
+        <span className="flex items-center gap-1 text-xs text-slate-400">
+          <span className="grid h-4 w-4 place-items-center rounded-full bg-emerald-100 text-[9px] text-emerald-700">
+            ▼
+          </span>
+          の行をタップで明細表示
+        </span>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
