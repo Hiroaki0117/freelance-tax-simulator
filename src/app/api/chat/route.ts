@@ -38,7 +38,12 @@ const CONSUMPTION_MODES: ConsumptionTaxMode[] = [
   'simplified',
   'general',
 ];
-const INSURANCE_TYPES: InsuranceType[] = ['kokuho', 'dependent'];
+const INSURANCE_TYPES: InsuranceType[] = [
+  'kokuho',
+  'voluntary',
+  'other',
+  'dependent',
+];
 
 /** クライアントから渡された入力を安全な TaxInput に整える */
 function sanitizeInput(raw: unknown): TaxInput {
@@ -61,6 +66,11 @@ function sanitizeInput(raw: unknown): TaxInput {
     insurance: INSURANCE_TYPES.includes(r.insurance as InsuranceType)
       ? (r.insurance as InsuranceType)
       : 'kokuho',
+    healthInsuranceManual: cap(r.healthInsuranceManual),
+    businessTaxApplicable:
+      r.businessTaxApplicable === undefined
+        ? true
+        : Boolean(r.businessTaxApplicable),
     age40OrOver: Boolean(r.age40OrOver),
   };
 }
@@ -109,7 +119,16 @@ const SIMULATE_TOOL: Anthropic.Tool = {
       insurance: {
         type: 'string',
         enum: INSURANCE_TYPES,
-        description: 'kokuho(国保+国民年金) / dependent(扶養内)',
+        description:
+          'kokuho(国保) / voluntary(任意継続) / other(その他健保) / dependent(扶養内)。voluntary・other は healthInsuranceManual に保険料(年額)を指定する',
+      },
+      healthInsuranceManual: {
+        type: 'number',
+        description: '任意継続・その他を選んだ場合の健康保険料(年額・円)',
+      },
+      businessTaxApplicable: {
+        type: 'boolean',
+        description: '個人事業税の対象業種か(非該当なら false で0円)',
       },
       age40OrOver: { type: 'boolean', description: '40歳以上か' },
     },

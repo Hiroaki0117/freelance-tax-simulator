@@ -10,10 +10,12 @@ export type ConsumptionTaxMode =
   | 'simplified' // 簡易課税(サービス業・第5種を既定)
   | 'general'; // 本則課税(概算)
 
-/** 社会保険の区分 */
+/** 健康保険の区分 */
 export type InsuranceType =
-  | 'kokuho' // 国民健康保険 + 国民年金(第1号)
-  | 'dependent'; // 配偶者などの社会保険の扶養内(国保・年金の自己負担なし)
+  | 'kokuho' // 国民健康保険(概算)+ 国民年金(第1号)
+  | 'voluntary' // 前職の健康保険の任意継続(保険料は手入力)+ 国民年金(第1号)
+  | 'other' // その他の健康保険(国保組合など・保険料は手入力)+ 国民年金(第1号)
+  | 'dependent'; // 配偶者などの社会保険の扶養内(健保・年金の自己負担なし)
 
 /** シミュレーターへの入力 */
 export interface TaxInput {
@@ -29,8 +31,12 @@ export interface TaxInput {
   dependents: number;
   /** 消費税の課税区分 */
   consumptionTax: ConsumptionTaxMode;
-  /** 社会保険の区分 */
+  /** 健康保険の区分 */
   insurance: InsuranceType;
+  /** 任意継続・その他を選んだ場合の健康保険料(年額・手入力) */
+  healthInsuranceManual: number;
+  /** 個人事業税の対象業種か(非該当の職種なら false で0円) */
+  businessTaxApplicable: boolean;
   /** 40歳以上か(国保の介護分の有無に影響) */
   age40OrOver: boolean;
 }

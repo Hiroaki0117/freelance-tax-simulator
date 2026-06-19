@@ -32,6 +32,8 @@ export const CONSUMPTION_LABELS: Record<ConsumptionTaxMode, string> = {
 
 export const INSURANCE_LABELS: Record<InsuranceType, string> = {
   kokuho: '国民健康保険 + 国民年金',
+  voluntary: '任意継続(健保)+ 国民年金',
+  other: 'その他の健康保険 + 国民年金',
   dependent: '家族の社会保険の扶養内',
 };
 
@@ -43,9 +45,15 @@ export function describeInput(input: TaxInput): string {
     FILING_LABELS[input.filingType],
     CONSUMPTION_LABELS[input.consumptionTax],
     INSURANCE_LABELS[input.insurance],
+  ];
+  if (input.insurance === 'voluntary' || input.insurance === 'other') {
+    parts.push(`健康保険料(手入力) ${formatYen(input.healthInsuranceManual)}`);
+  }
+  parts.push(
+    input.businessTaxApplicable ? '個人事業税の対象' : '個人事業税の対象外',
     input.age40OrOver ? '40歳以上' : '40歳未満',
     input.hasSpouse ? '配偶者あり(扶養)' : '配偶者なし',
-    `扶養親族 ${input.dependents}人`,
-  ];
+    `扶養親族 ${input.dependents}人`
+  );
   return parts.join(' / ');
 }
