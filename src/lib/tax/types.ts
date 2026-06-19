@@ -87,4 +87,25 @@ export interface TaxResult {
   effectiveRateOnRevenue: number; // 売上に対する負担率(burdenTotal / revenue)
   effectiveRateOnIncome: number; // 利益に対する負担率(burdenTotal / profit)
   monthlyReserve: number; // 毎月いくら積み立てれば安心か(burdenTotal / 12)
+
+  // ふるさと納税(実質負担2,000円で済む寄附の上限額・概算)
+  furusatoNozeiLimit: number;
+
+  // 計算内訳(UIのクリック展開・AIの説明用)
+  breakdown: {
+    residentIncomeLevy: number; // 住民税の所得割
+    residentPerCapita: number; // 住民税の均等割 + 森林環境税
+    businessTaxBase: number; // 個人事業税の課税ベース(利益 − 290万)
+    kokuho: {
+      incomeLevy: number; // 所得割
+      perCapita: number; // 均等割(被保険者数分)
+      insuredCount: number; // 被保険者数
+      cap: number; // 賦課限度額
+      capped: boolean; // 上限に達したか
+    } | null;
+    consumption: {
+      national: number; // 国税分
+      local: number; // 地方消費税分
+    } | null;
+  };
 }

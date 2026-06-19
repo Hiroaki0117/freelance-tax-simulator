@@ -176,6 +176,44 @@ describe('calculateTax(健康保険の区分)', () => {
   });
 });
 
+describe('calculateTax(ふるさと納税の上限・概算)', () => {
+  it('基本ケースの上限目安', () => {
+    // 住民税所得割327,800 × 20% ÷ (90% − 10%×1.021) + 2,000
+    expect(calculateTax(base).furusatoNozeiLimit).toBe(84_000);
+  });
+
+  it('住民税の所得割が0なら上限も0', () => {
+    const r = calculateTax({ ...base, revenue: 1_000_000, expenses: 1_500_000 });
+    expect(r.breakdown.residentIncomeLevy).toBe(0);
+    expect(r.furusatoNozeiLimit).toBe(0);
+  });
+});
+
+describe('calculateTax(内訳 breakdown)', () => {
+  it('国保の内訳(所得割 + 均等割)が合計と整合', () => {
+    const r = calculateTax(base);
+    expect(r.breakdown.kokuho).not.toBeNull();
+    const k = r.breakdown.kokuho!;
+    expect(k.incomeLevy + k.perCapita).toBe(r.healthInsurance);
+  });
+
+  it('国保以外は kokuho 内訳が null', () => {
+    const r = calculateTax({ ...base, insurance: 'dependent' });
+    expect(r.breakdown.kokuho).toBeNull();
+  });
+
+  it('消費税の内訳(国税 + 地方)が合計と整合', () => {
+    const r = calculateTax({ ...base, consumptionTax: 'special2wari' });
+    expect(r.breakdown.consumption).not.toBeNull();
+    const c = r.breakdown.consumption!;
+    expect(c.national + c.local).toBe(r.consumptionTax);
+  });
+
+  it('免税は消費税の内訳が null', () => {
+    expect(calculateTax(base).breakdown.consumption).toBeNull();
+  });
+});
+
 describe('calculateTax(個人事業税の対象/対象外)', () => {
   it('対象外なら事業所得が高くても事業税は0', () => {
     const r = calculateTax({ ...base, businessTaxApplicable: false });
