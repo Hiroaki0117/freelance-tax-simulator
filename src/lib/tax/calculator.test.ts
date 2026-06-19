@@ -21,15 +21,17 @@ const base: TaxInput = {
 };
 
 describe('calculateIncomeTaxBase(所得税の速算)', () => {
-  it('195万円以下は5%、控除0', () => {
+  it('195万円以下は5%、速算控除0', () => {
     const r = calculateIncomeTaxBase(1_000_000);
     expect(r.rate).toBe(0.05);
+    expect(r.deduction).toBe(0);
     expect(r.amount).toBe(50_000);
   });
 
-  it('195万円超〜330万円以下は10%・控除97,500円', () => {
+  it('195万円超〜330万円以下は10%・速算控除97,500円', () => {
     const r = calculateIncomeTaxBase(3_000_000);
     expect(r.rate).toBe(0.1);
+    expect(r.deduction).toBe(97_500);
     expect(r.amount).toBe(202_500); // 3,000,000*0.1 - 97,500
   });
 
