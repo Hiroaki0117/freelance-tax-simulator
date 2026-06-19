@@ -7,26 +7,60 @@ import {
   formatPercent,
   formatYen,
 } from '@/lib/tax/format';
+import { INCOME_TAX_BRACKETS } from '@/lib/tax/constants';
 import { DISCLAIMER_SHORT } from '@/lib/disclaimer';
 
 interface DetailRow {
   label: string;
   value?: string;
+  highlight?: boolean; // 該当区分を強調
+  heading?: boolean; // 小見出し
 }
 
 function Detail({ rows }: { rows: DetailRow[] }) {
   return (
     <div className="mb-1.5 space-y-1 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
-      {rows.map((r, i) => (
-        <div key={i} className="flex items-baseline justify-between gap-2">
-          <span>{r.label}</span>
-          {r.value !== undefined && (
-            <span className="tabular shrink-0">{r.value}</span>
-          )}
-        </div>
-      ))}
+      {rows.map((r, i) =>
+        r.heading ? (
+          <div key={i} className="pt-1.5 font-semibold text-slate-700">
+            {r.label}
+          </div>
+        ) : (
+          <div
+            key={i}
+            className={`flex items-baseline justify-between gap-2 rounded px-1 ${
+              r.highlight ? 'bg-emerald-100 font-medium text-emerald-800' : ''
+            }`}
+          >
+            <span>{r.label}</span>
+            {r.value !== undefined && (
+              <span className="tabular shrink-0">{r.value}</span>
+            )}
+          </div>
+        )
+      )}
     </div>
   );
+}
+
+/** 所得税の速算表を行データ化し、該当区分をハイライトする */
+function incomeTaxBracketRows(taxableIncome: number): DetailRow[] {
+  const applicable = INCOME_TAX_BRACKETS.findIndex(
+    (b) => taxableIncome <= b.limit
+  );
+  const man = (n: number) => (n / 10000).toLocaleString('ja-JP');
+  return INCOME_TAX_BRACKETS.map((b, i) => {
+    const lower = i === 0 ? 0 : INCOME_TAX_BRACKETS[i - 1].limit;
+    let range: string;
+    if (i === 0) range = `〜${man(b.limit)}万円`;
+    else if (!Number.isFinite(b.limit)) range = `${man(lower)}万円〜`;
+    else range = `${man(lower)}〜${man(b.limit)}万円`;
+    return {
+      label: `${range}:税率${formatPercent(b.rate, 0)}`,
+      value: `控除 ${formatYen(b.deduction)}`,
+      highlight: i === applicable,
+    };
+  });
 }
 
 function Row({
@@ -207,6 +241,11 @@ export function ResultPanel({ result }: { result: TaxResult }) {
                 value: formatYen(r.recoveryTax),
               },
               { label: '= 所得税', value: formatYen(r.incomeTax) },
+              {
+                label: `所得税の速算表(あなたの区分は ${formatPercent(r.incomeTaxRate, 0)})`,
+                heading: true,
+              },
+              ...incomeTaxBracketRows(r.taxableIncomeForIncomeTax),
               {
                 label: '※ 速算控除=累進課税を一回の掛け算で計算するための調整額',
               },
