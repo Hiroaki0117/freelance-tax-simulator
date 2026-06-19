@@ -189,7 +189,17 @@ export function ResultPanel({ result }: { result: TaxResult }) {
                 value: formatYen(r.taxableIncomeForIncomeTax),
               },
               {
-                label: `× 税率 ${formatPercent(r.incomeTaxRate, 0)} − 速算控除`,
+                label: `× 税率 ${formatPercent(r.incomeTaxRate, 0)}`,
+                value: formatYen(
+                  r.taxableIncomeForIncomeTax * r.incomeTaxRate
+                ),
+              },
+              {
+                label: `− 速算控除(税率${formatPercent(r.incomeTaxRate, 0)}の区分)`,
+                value: `− ${formatYen(r.incomeTaxRateDeduction)}`,
+              },
+              {
+                label: '= 所得税(100円未満切捨)',
                 value: formatYen(r.incomeTaxBase),
               },
               {
@@ -197,6 +207,9 @@ export function ResultPanel({ result }: { result: TaxResult }) {
                 value: formatYen(r.recoveryTax),
               },
               { label: '= 所得税', value: formatYen(r.incomeTax) },
+              {
+                label: '※ 速算控除=累進課税を一回の掛け算で計算するための調整額',
+              },
             ]}
           />
           <Row

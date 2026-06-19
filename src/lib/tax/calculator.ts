@@ -41,10 +41,11 @@ function floor1000(value: number): number {
   return Math.floor(value / 1000) * 1000;
 }
 
-/** 所得税(復興税前)と限界税率を求める */
+/** 所得税(復興税前)と限界税率・速算控除を求める */
 export function calculateIncomeTaxBase(taxableIncome: number): {
   amount: number;
   rate: number;
+  deduction: number;
 } {
   const bracket =
     INCOME_TAX_BRACKETS.find((b) => taxableIncome <= b.limit) ??
@@ -53,7 +54,7 @@ export function calculateIncomeTaxBase(taxableIncome: number): {
     0,
     floor100(taxableIncome * bracket.rate - bracket.deduction)
   );
-  return { amount, rate: bracket.rate };
+  return { amount, rate: bracket.rate, deduction: bracket.deduction };
 }
 
 /**
@@ -201,8 +202,11 @@ export function calculateTax(input: TaxInput): TaxResult {
   const taxableIncomeForIncomeTax = floor1000(
     Math.max(0, businessIncome - incomeTaxDeductions.total)
   );
-  const { amount: incomeTaxBase, rate: incomeTaxRate } =
-    calculateIncomeTaxBase(taxableIncomeForIncomeTax);
+  const {
+    amount: incomeTaxBase,
+    rate: incomeTaxRate,
+    deduction: incomeTaxRateDeduction,
+  } = calculateIncomeTaxBase(taxableIncomeForIncomeTax);
   const recoveryTax = floor100(incomeTaxBase * RECOVERY_TAX_RATE);
   const incomeTax = incomeTaxBase + recoveryTax;
 
@@ -280,6 +284,7 @@ export function calculateTax(input: TaxInput): TaxResult {
     recoveryTax,
     incomeTax,
     incomeTaxRate,
+    incomeTaxRateDeduction,
     residentTax,
     businessTax,
     consumptionTax,

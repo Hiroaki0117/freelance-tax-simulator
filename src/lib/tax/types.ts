@@ -76,6 +76,7 @@ export interface TaxResult {
   recoveryTax: number; // 復興特別所得税
   incomeTax: number; // 所得税合計(復興税込)
   incomeTaxRate: number; // 適用された所得税率(限界税率)
+  incomeTaxRateDeduction: number; // 速算控除額(速算表の控除額)
   residentTax: number; // 住民税
   businessTax: number; // 個人事業税
   consumptionTax: number; // 消費税
