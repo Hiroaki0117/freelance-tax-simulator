@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import type {
   ConsumptionTaxMode,
   FilingType,
@@ -12,25 +11,17 @@ import {
   FILING_LABELS,
   INSURANCE_LABELS,
 } from '@/lib/tax/format';
+import { AmountInput } from './AmountInput';
 
 interface Props {
   input: TaxInput;
   onChange: (input: TaxInput) => void;
 }
 
-type RevenueMode = 'annual' | 'monthly' | 'each';
-
 const cardClass = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';
 const labelClass = 'block text-sm font-medium text-slate-700';
 const selectClass =
   'mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500';
-const segBtn =
-  'flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors';
-
-function manYen(value: number): string {
-  if (!value) return '';
-  return `= ${(value / 10000).toLocaleString('ja-JP')}万円`;
-}
 
 function num(value: string): number {
   const n = Number(value.replace(/[^0-9]/g, ''));
@@ -41,40 +32,14 @@ function withCommas(value: number): string {
   return value ? value.toLocaleString('ja-JP') : '';
 }
 
-export function SimulatorForm({ input, onChange }: Props) {
-  const [revenueMode, setRevenueMode] = useState<RevenueMode>('annual');
-  const [monthly, setMonthly] = useState(Math.round(input.revenue / 12));
-  const [months, setMonths] = useState<number[]>(
-    Array.from({ length: 12 }, () => Math.round(input.revenue / 12))
-  );
+function manYen(value: number): string {
+  if (!value) return '';
+  return `= ${(value / 10000).toLocaleString('ja-JP')}万円`;
+}
 
+export function SimulatorForm({ input, onChange }: Props) {
   function update<K extends keyof TaxInput>(key: K, value: TaxInput[K]) {
     onChange({ ...input, [key]: value });
-  }
-
-  function switchMode(mode: RevenueMode) {
-    setRevenueMode(mode);
-    const seed = Math.round(input.revenue / 12);
-    if (mode === 'monthly') {
-      setMonthly(seed);
-    } else if (mode === 'each') {
-      setMonths(Array.from({ length: 12 }, () => seed));
-    }
-  }
-
-  function setMonthlyValue(v: number) {
-    setMonthly(v);
-    update('revenue', v * 12);
-  }
-
-  function setMonthValue(index: number, v: number) {
-    const next = months.slice();
-    next[index] = v;
-    setMonths(next);
-    update(
-      'revenue',
-      next.reduce((a, b) => a + b, 0)
-    );
   }
 
   const usesManualInsurance =
@@ -85,109 +50,23 @@ export function SimulatorForm({ input, onChange }: Props) {
       <h2 className="mb-4 text-lg font-semibold">入力</h2>
 
       <div className="space-y-4">
-        {/* 売上(3つの入力方法) */}
-        <div>
-          <label className={labelClass}>年間売上(税込・見込み)</label>
-          <div className="mt-1 flex gap-1 rounded-lg bg-slate-100 p-1">
-            {(
-              [
-                ['annual', '年額'],
-                ['monthly', '月額×12'],
-                ['each', '月別'],
-              ] as [RevenueMode, string][]
-            ).map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => switchMode(mode)}
-                className={`${segBtn} ${
-                  revenueMode === mode
-                    ? 'bg-white text-emerald-700 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        <AmountInput
+          label="年間売上(税込・見込み)"
+          value={input.revenue}
+          onChange={(v) => update('revenue', v)}
+          placeholder="6,000,000"
+        />
 
-          {revenueMode === 'annual' && (
-            <input
-              inputMode="numeric"
-              className={`${selectClass} tabular`}
-              value={withCommas(input.revenue)}
-              onChange={(e) => update('revenue', num(e.target.value))}
-              placeholder="6,000,000"
-            />
-          )}
-
-          {revenueMode === 'monthly' && (
-            <div>
-              <div className="mt-2 flex items-center gap-2">
-                <input
-                  inputMode="numeric"
-                  className={`${selectClass} tabular`}
-                  value={withCommas(monthly)}
-                  onChange={(e) => setMonthlyValue(num(e.target.value))}
-                  placeholder="500,000"
-                />
-                <span className="shrink-0 text-sm text-slate-500">円/月</span>
-              </div>
-            </div>
-          )}
-
-          {revenueMode === 'each' && (
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {months.map((m, i) => (
-                <label key={i} className="block">
-                  <span className="text-[11px] text-slate-400">{i + 1}月</span>
-                  <input
-                    inputMode="numeric"
-                    className="tabular w-full rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-emerald-500 focus:outline-none"
-                    value={withCommas(m)}
-                    onChange={(e) => setMonthValue(i, num(e.target.value))}
-                  />
-                </label>
-              ))}
-            </div>
-          )}
-
-          <p className="mt-1 text-xs text-slate-500 tabular">
-            年間 {input.revenue.toLocaleString('ja-JP')}円 {manYen(input.revenue)}
-          </p>
-        </div>
-
-        {/* 経費 */}
-        <div>
-          <label className={labelClass} htmlFor="expenses">
-            年間経費(ざっくり)
-          </label>
-          <input
-            id="expenses"
-            inputMode="numeric"
-            className={`${selectClass} tabular`}
-            value={withCommas(input.expenses)}
-            onChange={(e) => update('expenses', num(e.target.value))}
-            placeholder="1,200,000"
-          />
-          <div className="mt-2 flex flex-wrap gap-2">
-            {[0.1, 0.2, 0.3].map((rate) => (
-              <button
-                key={rate}
-                type="button"
-                className="rounded-full border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-                onClick={() =>
-                  update('expenses', Math.round(input.revenue * rate))
-                }
-              >
-                売上の{rate * 100}%
-              </button>
-            ))}
-            <span className="self-center text-xs text-slate-500 tabular">
-              {manYen(input.expenses)}
-            </span>
-          </div>
-        </div>
+        <AmountInput
+          label="年間経費(ざっくり)"
+          value={input.expenses}
+          onChange={(v) => update('expenses', v)}
+          placeholder="1,200,000"
+          quick={[0.1, 0.2, 0.3].map((rate) => ({
+            label: `売上の${rate * 100}%`,
+            value: Math.round(input.revenue * rate),
+          }))}
+        />
 
         {/* 申告区分 */}
         <div>

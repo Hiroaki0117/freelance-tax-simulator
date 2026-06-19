@@ -57,31 +57,55 @@ export function calculateIncomeTaxBase(taxableIncome: number): {
 }
 
 /**
- * 国民健康保険(概算)
+ * 国民健康保険(概算)の内訳
  * 賦課のベース = 事業所得 - 43万円。所得割 + 均等割(被保険者数分)を上限でキャップ。
  */
+export function calculateHealthInsuranceDetail(
+  businessIncome: number,
+  insuredCount: number,
+  age40OrOver: boolean
+): {
+  total: number;
+  incomeLevy: number;
+  perCapita: number;
+  insuredCount: number;
+  cap: number;
+  capped: boolean;
+} {
+  const table = age40OrOver ? KOKUHO.over40 : KOKUHO.under40;
+  const count = Math.max(1, insuredCount);
+  const base = Math.max(0, businessIncome - KOKUHO.basicDeduction);
+  const incomeLevy = Math.round(base * table.incomeLevyRate);
+  const perCapita = table.perCapita * count;
+  const raw = incomeLevy + perCapita;
+  return {
+    total: Math.min(table.cap, raw),
+    incomeLevy,
+    perCapita,
+    insuredCount: count,
+    cap: table.cap,
+    capped: raw > table.cap,
+  };
+}
+
 export function calculateHealthInsurance(
   businessIncome: number,
   insuredCount: number,
   age40OrOver: boolean
 ): number {
-  const table = age40OrOver ? KOKUHO.over40 : KOKUHO.under40;
-  const base = Math.max(0, businessIncome - KOKUHO.basicDeduction);
-  const incomeLevy = Math.round(base * table.incomeLevyRate);
-  const perCapita = table.perCapita * Math.max(1, insuredCount);
-  return Math.min(table.cap, incomeLevy + perCapita);
+  return calculateHealthInsuranceDetail(businessIncome, insuredCount, age40OrOver)
+    .total;
 }
 
 /**
- * 消費税(概算)
- * 売上は税込(10%)を前提とする。
+ * 消費税(概算)の内訳。売上は税込(10%)を前提とする。
  */
-export function calculateConsumptionTax(
+export function calculateConsumptionTaxDetail(
   mode: ConsumptionTaxMode,
   revenue: number,
   expenses: number
-): number {
-  if (mode === 'exempt') return 0;
+): { total: number; national: number; local: number } {
+  if (mode === 'exempt') return { total: 0, national: 0, local: 0 };
 
   // 課税標準額(売上の税抜・1,000円未満切り捨て)に対する国税分
   const salesTaxableStandard = floor1000((revenue * 100) / 110);
@@ -93,7 +117,9 @@ export function calculateConsumptionTax(
     national = floor100(salesNationalTax * (1 - SPECIAL_2WARI_DEDUCTION_RATE));
   } else if (mode === 'simplified') {
     // 簡易課税:みなし仕入率(サービス業50%)で控除
-    national = floor100(salesNationalTax * (1 - SIMPLIFIED_DEEMED_PURCHASE_RATE));
+    national = floor100(
+      salesNationalTax * (1 - SIMPLIFIED_DEEMED_PURCHASE_RATE)
+    );
   } else {
     // 本則課税(概算):経費を全額課税仕入とみなして控除
     const purchaseTaxableStandard = floor1000((expenses * 100) / 110);
@@ -103,7 +129,15 @@ export function calculateConsumptionTax(
   }
 
   const local = floor100(national * CONSUMPTION_LOCAL_RATIO);
-  return national + local;
+  return { total: national + local, national, local };
+}
+
+export function calculateConsumptionTax(
+  mode: ConsumptionTaxMode,
+  revenue: number,
+  expenses: number
+): number {
+  return calculateConsumptionTaxDetail(mode, revenue, expenses).total;
 }
 
 /** メイン:入力から税・社会保険・手取りを概算する */
@@ -125,14 +159,23 @@ export function calculateTax(input: TaxInput): TaxResult {
 
   // 健康保険:区分に応じて算出
   let healthInsurance = 0;
+  let kokuhoBreakdown: TaxResult['breakdown']['kokuho'] = null;
   if (input.insurance === 'kokuho') {
     // 国保の被保険者数は世帯(本人 + 配偶者 + 扶養人数)でカウント
     const insuredCount = 1 + (input.hasSpouse ? 1 : 0) + dependents;
-    healthInsurance = calculateHealthInsurance(
+    const detail = calculateHealthInsuranceDetail(
       businessIncome,
       insuredCount,
       input.age40OrOver
     );
+    healthInsurance = detail.total;
+    kokuhoBreakdown = {
+      incomeLevy: detail.incomeLevy,
+      perCapita: detail.perCapita,
+      insuredCount: detail.insuredCount,
+      cap: detail.cap,
+      capped: detail.capped,
+    };
   } else if (input.insurance === 'voluntary' || input.insurance === 'other') {
     // 任意継続・その他は実額(年額)を手入力で反映
     healthInsurance = Math.max(0, Math.round(input.healthInsuranceManual || 0));
@@ -184,10 +227,9 @@ export function calculateTax(input: TaxInput): TaxResult {
     taxableIncomeForResidentTax * RESIDENT_TAX_INCOME_RATE
   );
   // 課税所得が0なら均等割も発生しない簡易判定(非課税基準はざっくり)
-  const residentTax =
-    taxableIncomeForResidentTax > 0
-      ? residentIncomeLevy + RESIDENT_TAX_PER_CAPITA
-      : 0;
+  const residentPerCapita =
+    taxableIncomeForResidentTax > 0 ? RESIDENT_TAX_PER_CAPITA : 0;
+  const residentTax = residentIncomeLevy + residentPerCapita;
 
   // --- 個人事業税 ---
   // 法定業種に該当する場合のみ課税(エンジニア等は非該当のことがある)。
@@ -198,11 +240,21 @@ export function calculateTax(input: TaxInput): TaxResult {
   const businessTax = floor100(businessTaxBase * BUSINESS_TAX_RATE);
 
   // --- 消費税 ---
-  const consumptionTax = calculateConsumptionTax(
+  const consumptionDetail = calculateConsumptionTaxDetail(
     input.consumptionTax,
     revenue,
     expenses
   );
+  const consumptionTax = consumptionDetail.total;
+
+  // --- ふるさと納税の上限額(概算)---
+  // 控除上限 ≒ 住民税所得割 × 20% ÷ (90% − 所得税率 × 1.021) + 2,000円
+  const furusatoNozeiLimit =
+    residentIncomeLevy > 0
+      ? floor1000(
+          (residentIncomeLevy * 0.2) / (0.9 - incomeTaxRate * 1.021)
+        ) + 2000
+      : 0;
 
   // --- 集計 ---
   const taxTotal = incomeTax + residentTax + businessTax + consumptionTax;
@@ -237,5 +289,19 @@ export function calculateTax(input: TaxInput): TaxResult {
     effectiveRateOnRevenue,
     effectiveRateOnIncome,
     monthlyReserve,
+    furusatoNozeiLimit,
+    breakdown: {
+      residentIncomeLevy,
+      residentPerCapita,
+      businessTaxBase,
+      kokuho: kokuhoBreakdown,
+      consumption:
+        input.consumptionTax === 'exempt'
+          ? null
+          : {
+              national: consumptionDetail.national,
+              local: consumptionDetail.local,
+            },
+    },
   };
 }

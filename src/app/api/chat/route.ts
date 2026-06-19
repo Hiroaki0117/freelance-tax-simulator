@@ -91,6 +91,7 @@ function summarize(result: TaxResult) {
       (result.effectiveRateOnRevenue * 100).toFixed(1)
     ),
     毎月の積立目安: result.monthlyReserve,
+    ふるさと納税の上限目安: result.furusatoNozeiLimit,
   };
 }
 
