@@ -61,6 +61,38 @@ export function ResultPanel({ result }: { result: TaxResult }) {
       </div>
 
       <div className="mt-5">
+        <h3 className="mb-1 text-sm font-semibold text-slate-700">
+          事業所得の計算
+        </h3>
+        <div className="divide-y divide-slate-100">
+          <Row label="売上" value={formatYen(result.input.revenue)} />
+          <Row
+            label="経費"
+            value={`− ${formatYen(result.input.expenses)}`}
+          />
+          <Row
+            label="青色申告特別控除"
+            value={`− ${formatYen(result.blueDeductionApplied)}`}
+          />
+          <Row
+            label="= 事業所得"
+            value={formatYen(result.businessIncome)}
+            strong
+          />
+          <Row
+            label="所得控除の合計"
+            hint="(基礎・社会保険・配偶者・扶養)"
+            value={`− ${formatYen(result.incomeTaxDeductions.total)}`}
+          />
+          <Row
+            label="= 課税所得(所得税)"
+            value={formatYen(result.taxableIncomeForIncomeTax)}
+            strong
+          />
+        </div>
+      </div>
+
+      <div className="mt-5">
         <h3 className="mb-1 text-sm font-semibold text-slate-700">税金</h3>
         <div className="divide-y divide-slate-100">
           <Row
@@ -100,10 +132,6 @@ export function ResultPanel({ result }: { result: TaxResult }) {
           label="税 + 社会保険の合計"
           value={formatYen(result.burdenTotal)}
           strong
-        />
-        <Row
-          label="事業所得(青色控除後)"
-          value={formatYen(result.businessIncome)}
         />
       </div>
 

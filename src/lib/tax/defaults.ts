@@ -9,5 +9,7 @@ export const DEFAULT_INPUT: TaxInput = {
   dependents: 0,
   consumptionTax: 'special2wari',
   insurance: 'kokuho',
+  healthInsuranceManual: 0,
+  businessTaxApplicable: true,
   age40OrOver: false,
 };

@@ -15,6 +15,8 @@ const base: TaxInput = {
   dependents: 0,
   consumptionTax: 'exempt',
   insurance: 'kokuho',
+  healthInsuranceManual: 0,
+  businessTaxApplicable: true,
   age40OrOver: false,
 };
 
@@ -142,6 +144,47 @@ describe('calculateTax(低所得・扶養内・白色)', () => {
     expect(r.burdenTotal).toBe(58_300);
     expect(r.takeHome).toBe(741_700);
     expect(r.monthlyReserve).toBe(4_859);
+  });
+});
+
+describe('calculateTax(健康保険の区分)', () => {
+  it('任意継続は手入力の健保額を使い、国民年金は本人分を計上', () => {
+    const r = calculateTax({
+      ...base,
+      insurance: 'voluntary',
+      healthInsuranceManual: 360_000,
+    });
+    expect(r.healthInsurance).toBe(360_000);
+    expect(r.nationalPension).toBe(203_760);
+    expect(r.socialInsuranceTotal).toBe(563_760);
+  });
+
+  it('その他の健康保険も手入力額を反映', () => {
+    const r = calculateTax({
+      ...base,
+      insurance: 'other',
+      healthInsuranceManual: 240_000,
+    });
+    expect(r.healthInsurance).toBe(240_000);
+    expect(r.nationalPension).toBe(203_760);
+  });
+
+  it('扶養内は健保・年金ともに0', () => {
+    const r = calculateTax({ ...base, insurance: 'dependent' });
+    expect(r.healthInsurance).toBe(0);
+    expect(r.nationalPension).toBe(0);
+  });
+});
+
+describe('calculateTax(個人事業税の対象/対象外)', () => {
+  it('対象外なら事業所得が高くても事業税は0', () => {
+    const r = calculateTax({ ...base, businessTaxApplicable: false });
+    expect(r.businessTax).toBe(0);
+  });
+
+  it('対象なら従来どおり課税される', () => {
+    const r = calculateTax({ ...base, businessTaxApplicable: true });
+    expect(r.businessTax).toBe(105_000);
   });
 });
 

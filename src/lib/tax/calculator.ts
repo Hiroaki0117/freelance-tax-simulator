@@ -119,14 +119,26 @@ export function calculateTax(input: TaxInput): TaxResult {
   const businessIncome = Math.max(0, profit - blueDeductionApplied);
 
   // --- 社会保険 ---
-  const isKokuho = input.insurance === 'kokuho';
-  // 国民年金は本人分のみ計上(配偶者・家族分は概算では含めない)
-  const nationalPension = isKokuho ? NATIONAL_PENSION_ANNUAL : 0;
-  // 国保の被保険者数は世帯(本人 + 配偶者 + 扶養人数)でカウント
-  const insuredCount = 1 + (input.hasSpouse ? 1 : 0) + dependents;
-  const healthInsurance = isKokuho
-    ? calculateHealthInsurance(businessIncome, insuredCount, input.age40OrOver)
-    : 0;
+  // 国民年金は扶養内(第3号)以外は本人分を計上(配偶者・家族分は概算では含めない)
+  const paysPension = input.insurance !== 'dependent';
+  const nationalPension = paysPension ? NATIONAL_PENSION_ANNUAL : 0;
+
+  // 健康保険:区分に応じて算出
+  let healthInsurance = 0;
+  if (input.insurance === 'kokuho') {
+    // 国保の被保険者数は世帯(本人 + 配偶者 + 扶養人数)でカウント
+    const insuredCount = 1 + (input.hasSpouse ? 1 : 0) + dependents;
+    healthInsurance = calculateHealthInsurance(
+      businessIncome,
+      insuredCount,
+      input.age40OrOver
+    );
+  } else if (input.insurance === 'voluntary' || input.insurance === 'other') {
+    // 任意継続・その他は実額(年額)を手入力で反映
+    healthInsurance = Math.max(0, Math.round(input.healthInsuranceManual || 0));
+  }
+  // dependent(扶養内)は健康保険の自己負担なし(0)
+
   const socialInsuranceTotal = nationalPension + healthInsurance;
 
   // --- 所得税 ---
@@ -178,8 +190,11 @@ export function calculateTax(input: TaxInput): TaxResult {
       : 0;
 
   // --- 個人事業税 ---
-  // 事業税の所得計算では青色申告特別控除を差し引かない(profit ベース)
-  const businessTaxBase = Math.max(0, profit - BUSINESS_TAX_DEDUCTION);
+  // 法定業種に該当する場合のみ課税(エンジニア等は非該当のことがある)。
+  // 事業税の所得計算では青色申告特別控除を差し引かない(profit ベース)。
+  const businessTaxBase = input.businessTaxApplicable
+    ? Math.max(0, profit - BUSINESS_TAX_DEDUCTION)
+    : 0;
   const businessTax = floor100(businessTaxBase * BUSINESS_TAX_RATE);
 
   // --- 消費税 ---
