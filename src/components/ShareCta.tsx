@@ -1,4 +1,4 @@
-const X_HANDLE = 'REPLACE_ME'; // TODO: オーナーのXハンドルに差し替え(@抜きのスクリーンネーム)
+const X_HANDLE: string = 'freelance_nishimura'; // オーナーのXハンドル(@抜き)。空き確認が取れ次第このまま本番へ
 
 const SHARE_TEXT = 'フリーランスの税金シミュレーター、来年いくら払うか対話で計算できて便利だった。無料。';
 const SHARE_URL = 'https://freelance-tax-simulator.vercel.app';
