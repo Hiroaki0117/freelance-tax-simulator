@@ -180,7 +180,7 @@ export function ResultPanel({ result }: { result: TaxResult }) {
             </p>
           </div>
           <div className="rounded-lg bg-amber-50 p-3 text-center">
-            <p className="text-xs text-amber-700">毎月の納税つみたて</p>
+            <p className="text-xs text-amber-700">税の月割り</p>
             <p className="text-[10px] text-amber-500">所得税・住民税・事業税・消費税</p>
             <p className="tabular mt-1 text-base font-bold text-amber-800">
               {formatYen(r.monthlyTaxReserve)}
@@ -195,8 +195,9 @@ export function ResultPanel({ result }: { result: TaxResult }) {
           </div>
         </div>
         <p className="mt-3 text-xs leading-relaxed text-slate-500">
-          国保・年金は毎月の支払い。住民税は年4回、所得税・消費税は基本まとめて来ます。
-          「毎月の納税つみたて」を別口座に貯めておくと、納付の月も慌てません。
+          「税の月割り」は1年ぶんの税を12で割った額です。国保・年金は毎月払いですが、
+          残りの税は来る時期がバラバラ(所得税・消費税は一括、住民税は年4回、事業税は年2回)。
+          この月割りぶんを毎月よけておくと、納付の月も慌てません。
         </p>
       </div>
 

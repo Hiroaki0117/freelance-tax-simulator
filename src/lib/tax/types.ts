@@ -87,7 +87,7 @@ export interface TaxResult {
   takeHome: number; // 手取り(売上 - 経費 - burdenTotal)
   effectiveRateOnRevenue: number; // 売上に対する負担率(burdenTotal / revenue)
   effectiveRateOnIncome: number; // 利益に対する負担率(burdenTotal / profit)
-  // 毎月のお金の3分解(毎月の利益 = ①固定費 + ②納税つみたて + ③手取り)
+  // 毎月のお金の3分解(毎月の利益 = ①固定費 + ②税の月割り + ③手取り)
   monthlyFixedCost: number; // ① 国保+年金 ÷12 — もう毎月出ているお金
   monthlyTaxReserve: number; // ② 住民税+事業税+所得税+消費税 ÷12 — まとめて来るので毎月積立
   monthlyTakeHome: number; // ③ 手取り ÷12 — 自由に使えるお金

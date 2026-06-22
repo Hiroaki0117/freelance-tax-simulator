@@ -91,7 +91,7 @@ function summarize(result: TaxResult) {
       (result.effectiveRateOnRevenue * 100).toFixed(1)
     ),
     毎月の固定費_国保年金: result.monthlyFixedCost,
-    毎月の納税つみたて: result.monthlyTaxReserve,
+    税の月割り: result.monthlyTaxReserve,
     毎月の手取り: result.monthlyTakeHome,
     ふるさと納税の上限目安: result.furusatoNozeiLimit,
   };
