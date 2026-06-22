@@ -315,22 +315,39 @@ export function ResultPanel({ result }: { result: TaxResult }) {
             label="住民税"
             value={formatYen(r.residentTax)}
             detail={[
-              { label: '課税所得(住民税)を出す', heading: true },
+              { label: '課税所得(住民税)を計算', heading: true },
               { label: '事業所得', value: formatYen(r.businessIncome) },
               {
-                label: '− 住民税の所得控除',
-                value: `− ${formatYen(r.residentTaxDeductions.total)}`,
+                label: '− 基礎控除',
+                value: `− ${formatYen(r.residentTaxDeductions.basic)}`,
               },
               {
-                label: '= 課税所得(住民税)',
+                label: '− 社会保険料控除',
+                value: `− ${formatYen(r.residentTaxDeductions.socialInsurance)}`,
+              },
+              ...(r.residentTaxDeductions.spouse > 0
+                ? [
+                    {
+                      label: '− 配偶者控除',
+                      value: `− ${formatYen(r.residentTaxDeductions.spouse)}`,
+                    },
+                  ]
+                : []),
+              ...(r.residentTaxDeductions.dependents > 0
+                ? [
+                    {
+                      label: '− 扶養控除',
+                      value: `− ${formatYen(r.residentTaxDeductions.dependents)}`,
+                    },
+                  ]
+                : []),
+              {
+                label: '= 課税所得(1,000円未満切り捨て)',
                 value: formatYen(r.taxableIncomeForResidentTax),
               },
+              { label: '住民税を計算', heading: true },
               {
-                label: '※ 控除は所得税と別額(基礎43万・配偶者/扶養33万など)',
-              },
-              { label: '住民税を出す', heading: true },
-              {
-                label: '所得割 (課税所得 × 10%)',
+                label: '所得割(課税所得 × 10%)',
                 value: formatYen(b.residentIncomeLevy),
               },
               {
@@ -361,12 +378,13 @@ export function ResultPanel({ result }: { result: TaxResult }) {
             detail={
               b.consumption
                 ? [
+                    { label: '国税分を計算', heading: true },
                     {
                       label: '売上(税抜)= 課税標準額',
                       value: formatYen(b.consumption.salesBase),
                     },
                     {
-                      label: '売上の消費税(国税 7.8%)',
+                      label: '× 7.8% = 売上の消費税',
                       value: formatYen(b.consumption.salesNationalTax),
                     },
                     {
@@ -379,12 +397,14 @@ export function ResultPanel({ result }: { result: TaxResult }) {
                       value: `− ${formatYen(b.consumption.salesNationalTax - b.consumption.national)}`,
                     },
                     { label: '= 国税分', value: formatYen(b.consumption.national) },
+                    { label: '地方消費税を計算', heading: true },
                     {
-                      label: '+ 地方消費税',
+                      label: '国税分 × 22/78(地方分2.2%相当)',
                       value: formatYen(b.consumption.local),
                     },
+                    { label: '合計', heading: true },
                     {
-                      label: `= 消費税 (${CONSUMPTION_LABELS[r.input.consumptionTax]})`,
+                      label: `国税分 + 地方消費税 = 消費税(${CONSUMPTION_LABELS[r.input.consumptionTax]})`,
                       value: formatYen(r.consumptionTax),
                     },
                   ]
