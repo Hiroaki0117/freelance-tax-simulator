@@ -149,10 +149,10 @@ export function ResultPanel({ result }: { result: TaxResult }) {
             {formatYen(r.takeHome)}
           </p>
         </div>
-        <div className="rounded-xl bg-emerald-50 p-3 text-center">
-          <p className="text-xs text-emerald-700">毎月の手取り</p>
-          <p className="tabular mt-1 text-lg font-bold text-emerald-700">
-            {formatYen(r.monthlyTakeHome)}
+        <div className="rounded-xl bg-slate-50 p-3 text-center">
+          <p className="text-xs text-slate-600">引かれた合計</p>
+          <p className="tabular mt-1 text-lg font-bold text-slate-800">
+            {formatYen(r.burdenTotal)}
           </p>
         </div>
         <div className="rounded-xl bg-slate-50 p-3 text-center">
@@ -181,7 +181,7 @@ export function ResultPanel({ result }: { result: TaxResult }) {
           </div>
           <div className="rounded-lg bg-amber-50 p-3 text-center">
             <p className="text-xs text-amber-700">毎月の納税つみたて</p>
-            <p className="text-[10px] text-amber-500">住民税・所得税ほか</p>
+            <p className="text-[10px] text-amber-500">所得税・住民税・事業税・消費税</p>
             <p className="tabular mt-1 text-base font-bold text-amber-800">
               {formatYen(r.monthlyTaxReserve)}
             </p>
@@ -216,8 +216,15 @@ export function ResultPanel({ result }: { result: TaxResult }) {
         </p>
       </div>
 
+      {/* ▼ ここから詳しい内訳 */}
+      <div className="mt-6 border-t border-slate-200 pt-4">
+        <p className="text-xs font-medium text-slate-400">
+          詳しい内訳(行をタップで計算を表示)
+        </p>
+      </div>
+
       {/* 事業所得の計算 */}
-      <div className="mt-5">
+      <div className="mt-3">
         <h3 className="mb-1 text-sm font-semibold text-slate-700">
           事業所得の計算
         </h3>
@@ -439,36 +446,6 @@ export function ResultPanel({ result }: { result: TaxResult }) {
               { label: '− 経費', value: formatYen(r.input.expenses) },
               { label: '− 税・社会保険', value: formatYen(r.burdenTotal) },
               { label: '= 手取り', value: formatYen(r.takeHome) },
-            ]}
-          />
-          <Row
-            label="毎月の固定費(国保・年金)"
-            value={formatYen(r.monthlyFixedCost)}
-            detail={[
-              {
-                label: '社会保険の合計 ÷ 12(切り上げ)',
-                value: formatYen(r.monthlyFixedCost),
-              },
-            ]}
-          />
-          <Row
-            label="毎月の納税つみたて"
-            value={formatYen(r.monthlyTaxReserve)}
-            detail={[
-              {
-                label: '税の合計(住民税・事業税・所得税・消費税) ÷ 12(切り上げ)',
-                value: formatYen(r.monthlyTaxReserve),
-              },
-            ]}
-          />
-          <Row
-            label="毎月の手取り"
-            value={formatYen(r.monthlyTakeHome)}
-            detail={[
-              {
-                label: '手取り(年) ÷ 12(切り捨て)',
-                value: formatYen(r.monthlyTakeHome),
-              },
             ]}
           />
         </div>
