@@ -266,7 +266,10 @@ export function calculateTax(input: TaxInput): TaxResult {
   const takeHome = revenue - expenses - burdenTotal;
   const effectiveRateOnRevenue = revenue > 0 ? burdenTotal / revenue : 0;
   const effectiveRateOnIncome = profit > 0 ? burdenTotal / profit : 0;
-  const monthlyReserve = Math.ceil(burdenTotal / 12);
+  // 毎月のお金の3分解: 国保・年金は毎月払い / 税はまとめて来るので積立 / 残りが手取り
+  const monthlyFixedCost = Math.ceil(socialInsuranceTotal / 12);
+  const monthlyTaxReserve = Math.ceil(taxTotal / 12);
+  const monthlyTakeHome = Math.floor(takeHome / 12);
 
   return {
     input: { ...input, revenue, expenses, dependents },
@@ -293,7 +296,9 @@ export function calculateTax(input: TaxInput): TaxResult {
     takeHome,
     effectiveRateOnRevenue,
     effectiveRateOnIncome,
-    monthlyReserve,
+    monthlyFixedCost,
+    monthlyTaxReserve,
+    monthlyTakeHome,
     furusatoNozeiLimit,
     breakdown: {
       residentIncomeLevy,

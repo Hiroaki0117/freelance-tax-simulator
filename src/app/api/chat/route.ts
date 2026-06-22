@@ -90,7 +90,9 @@ function summarize(result: TaxResult) {
     売上に対する負担率: Number(
       (result.effectiveRateOnRevenue * 100).toFixed(1)
     ),
-    毎月の積立目安: result.monthlyReserve,
+    毎月の固定費_国保年金: result.monthlyFixedCost,
+    税の月割り: result.monthlyTaxReserve,
+    毎月の手取り: result.monthlyTakeHome,
     ふるさと納税の上限目安: result.furusatoNozeiLimit,
   };
 }
