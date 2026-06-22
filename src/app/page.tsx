@@ -1,4 +1,5 @@
 import { Simulator } from '@/components/Simulator';
+import { ShareCta } from '@/components/ShareCta';
 import { DISCLAIMER_LONG } from '@/lib/disclaimer';
 import { TAX_YEAR } from '@/lib/tax/constants';
 
@@ -20,6 +21,8 @@ export default function Home() {
       </header>
 
       <Simulator />
+
+      <ShareCta />
 
       <footer className="mt-12 border-t border-slate-200 pt-6 text-xs leading-relaxed text-slate-500">
         <p>{DISCLAIMER_LONG}</p>
