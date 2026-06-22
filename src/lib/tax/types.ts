@@ -110,6 +110,8 @@ export interface TaxResult {
     consumption: {
       national: number; // 国税分
       local: number; // 地方消費税分
+      salesBase: number; // 課税標準額(売上の税抜)
+      salesNationalTax: number; // 売上の消費税(国税分)
     } | null;
   };
 }
