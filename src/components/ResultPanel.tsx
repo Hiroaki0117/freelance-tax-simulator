@@ -441,6 +441,7 @@ export function ResultPanel({ result }: { result: TaxResult }) {
           <Row
             label="手取り(年)"
             value={formatYen(r.takeHome)}
+            strong
             detail={[
               { label: '売上', value: formatYen(r.input.revenue) },
               { label: '− 経費', value: formatYen(r.input.expenses) },
