@@ -14,10 +14,10 @@ interface ChatMessage {
 }
 
 const SUGGESTIONS = [
-  'あと売上100万円増えたら、税金はどう変わる?',
-  '外注費を50万円増やしたら手取りはどうなる?',
-  'インボイス登録して2割特例にすると?',
-  '青色65万円控除にしたら、いくら変わる?',
+  'この国民健康保険、なんでこの金額になるの?',
+  '実効税率って、手取りとどう違うの?',
+  '来年の納税のために、毎月いくら貯めておくべき?',
+  'いま自分がやれる節税で、効果が大きいのはどれ?',
 ];
 
 export function ChatPanel({ input, result }: Props) {
@@ -66,7 +66,7 @@ export function ChatPanel({ input, result }: Props) {
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-lg font-semibold">AIに相談する</h2>
       <p className="mt-1 text-xs text-slate-500">
-        いまの試算をもとに、「もし◯◯したら?」を自然な言葉で質問できます。
+        この結果の「意味」や、次にやるといいことを質問できます。
       </p>
 
       {messages.length > 0 && (
@@ -133,7 +133,7 @@ export function ChatPanel({ input, result }: Props) {
       >
         <input
           className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-          placeholder="例: 売上が800万になったら?"
+          placeholder="例: 国保がなぜこの金額か知りたい"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           disabled={loading}
