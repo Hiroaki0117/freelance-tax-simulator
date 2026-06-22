@@ -209,11 +209,16 @@ describe('calculateTax(内訳 breakdown)', () => {
     expect(r.breakdown.kokuho).toBeNull();
   });
 
-  it('消費税の内訳(国税 + 地方)が合計と整合', () => {
+  it('消費税の内訳(課税標準・売上税額・国税 + 地方)が整合', () => {
     const r = calculateTax({ ...base, consumptionTax: 'special2wari' });
     expect(r.breakdown.consumption).not.toBeNull();
     const c = r.breakdown.consumption!;
     expect(c.national + c.local).toBe(r.consumptionTax);
+    // 課税標準額(税抜)は税込売上より小さく正の値
+    expect(c.salesBase).toBeGreaterThan(0);
+    expect(c.salesBase).toBeLessThan(r.input.revenue);
+    // 2割特例は売上税額の20%を納付 → 納付国税は売上税額より小さい
+    expect(c.salesNationalTax).toBeGreaterThan(c.national);
   });
 
   it('免税は消費税の内訳が null', () => {

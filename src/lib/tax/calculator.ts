@@ -105,8 +105,15 @@ export function calculateConsumptionTaxDetail(
   mode: ConsumptionTaxMode,
   revenue: number,
   expenses: number
-): { total: number; national: number; local: number } {
-  if (mode === 'exempt') return { total: 0, national: 0, local: 0 };
+): {
+  total: number;
+  national: number;
+  local: number;
+  salesBase: number;
+  salesNationalTax: number;
+} {
+  if (mode === 'exempt')
+    return { total: 0, national: 0, local: 0, salesBase: 0, salesNationalTax: 0 };
 
   // 課税標準額(売上の税抜・1,000円未満切り捨て)に対する国税分
   const salesTaxableStandard = floor1000((revenue * 100) / 110);
@@ -130,7 +137,13 @@ export function calculateConsumptionTaxDetail(
   }
 
   const local = floor100(national * CONSUMPTION_LOCAL_RATIO);
-  return { total: national + local, national, local };
+  return {
+    total: national + local,
+    national,
+    local,
+    salesBase: salesTaxableStandard,
+    salesNationalTax,
+  };
 }
 
 export function calculateConsumptionTax(
@@ -311,6 +324,8 @@ export function calculateTax(input: TaxInput): TaxResult {
           : {
               national: consumptionDetail.national,
               local: consumptionDetail.local,
+              salesBase: consumptionDetail.salesBase,
+              salesNationalTax: consumptionDetail.salesNationalTax,
             },
     },
   };
