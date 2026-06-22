@@ -149,10 +149,10 @@ export function ResultPanel({ result }: { result: TaxResult }) {
             {formatYen(r.takeHome)}
           </p>
         </div>
-        <div className="rounded-xl bg-slate-50 p-3 text-center">
-          <p className="text-xs text-slate-600">毎月の積立目安</p>
-          <p className="tabular mt-1 text-lg font-bold text-slate-800">
-            {formatYen(r.monthlyReserve)}
+        <div className="rounded-xl bg-emerald-50 p-3 text-center">
+          <p className="text-xs text-emerald-700">毎月の手取り</p>
+          <p className="tabular mt-1 text-lg font-bold text-emerald-700">
+            {formatYen(r.monthlyTakeHome)}
           </p>
         </div>
         <div className="rounded-xl bg-slate-50 p-3 text-center">
@@ -161,6 +161,43 @@ export function ResultPanel({ result }: { result: TaxResult }) {
             {formatPercent(r.effectiveRateOnRevenue)}
           </p>
         </div>
+      </div>
+
+      {/* 毎月のお金の3分解 */}
+      <div className="mt-4 rounded-xl border border-slate-200 p-4">
+        <p className="text-sm font-medium text-slate-700">
+          毎月のお金、こう分かれます
+        </p>
+        <p className="mt-0.5 text-xs text-slate-500">
+          毎月の利益(売上 − 経費 ÷ 12)の内訳です。
+        </p>
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          <div className="rounded-lg bg-slate-50 p-3 text-center">
+            <p className="text-xs text-slate-600">毎月の固定費</p>
+            <p className="text-[10px] text-slate-400">国保・年金</p>
+            <p className="tabular mt-1 text-base font-bold text-slate-800">
+              {formatYen(r.monthlyFixedCost)}
+            </p>
+          </div>
+          <div className="rounded-lg bg-amber-50 p-3 text-center">
+            <p className="text-xs text-amber-700">毎月の納税つみたて</p>
+            <p className="text-[10px] text-amber-500">住民税・所得税ほか</p>
+            <p className="tabular mt-1 text-base font-bold text-amber-800">
+              {formatYen(r.monthlyTaxReserve)}
+            </p>
+          </div>
+          <div className="rounded-lg bg-emerald-50 p-3 text-center">
+            <p className="text-xs text-emerald-700">毎月の手取り</p>
+            <p className="text-[10px] text-emerald-500">自由に使える</p>
+            <p className="tabular mt-1 text-base font-bold text-emerald-700">
+              {formatYen(r.monthlyTakeHome)}
+            </p>
+          </div>
+        </div>
+        <p className="mt-3 text-xs leading-relaxed text-slate-500">
+          国保・年金は毎月の支払い。住民税は年4回、所得税・消費税は基本まとめて来ます。
+          「毎月の納税つみたて」を別口座に貯めておくと、納付の月も慌てません。
+        </p>
       </div>
 
       {/* ふるさと納税の上限目安 */}
@@ -405,12 +442,32 @@ export function ResultPanel({ result }: { result: TaxResult }) {
             ]}
           />
           <Row
-            label="毎月の積立目安"
-            value={formatYen(r.monthlyReserve)}
+            label="毎月の固定費(国保・年金)"
+            value={formatYen(r.monthlyFixedCost)}
             detail={[
               {
-                label: '税・社会保険の合計 ÷ 12(切り上げ)',
-                value: formatYen(r.monthlyReserve),
+                label: '社会保険の合計 ÷ 12(切り上げ)',
+                value: formatYen(r.monthlyFixedCost),
+              },
+            ]}
+          />
+          <Row
+            label="毎月の納税つみたて"
+            value={formatYen(r.monthlyTaxReserve)}
+            detail={[
+              {
+                label: '税の合計(住民税・事業税・所得税・消費税) ÷ 12(切り上げ)',
+                value: formatYen(r.monthlyTaxReserve),
+              },
+            ]}
+          />
+          <Row
+            label="毎月の手取り"
+            value={formatYen(r.monthlyTakeHome)}
+            detail={[
+              {
+                label: '手取り(年) ÷ 12(切り捨て)',
+                value: formatYen(r.monthlyTakeHome),
               },
             ]}
           />
