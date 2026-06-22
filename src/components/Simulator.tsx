@@ -15,7 +15,7 @@ export function Simulator() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <section className="space-y-6">
+      <section className="space-y-6 lg:sticky lg:top-8 lg:self-start">
         <SimulatorForm input={input} onChange={setInput} />
       </section>
       <section className="space-y-6">
