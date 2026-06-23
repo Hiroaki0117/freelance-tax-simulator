@@ -16,6 +16,8 @@ import { AmountInput } from './AmountInput';
 interface Props {
   input: TaxInput;
   onChange: (input: TaxInput) => void;
+  /** ふるさと納税の上限目安(「上限額を入れる」ボタン用) */
+  furusatoLimit: number;
 }
 
 const cardClass = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';
@@ -37,7 +39,7 @@ function manYen(value: number): string {
   return `= ${(value / 10000).toLocaleString('ja-JP')}万円`;
 }
 
-export function SimulatorForm({ input, onChange }: Props) {
+export function SimulatorForm({ input, onChange, furusatoLimit }: Props) {
   function update<K extends keyof TaxInput>(key: K, value: TaxInput[K]) {
     onChange({ ...input, [key]: value });
   }
@@ -207,6 +209,46 @@ export function SimulatorForm({ input, onChange }: Props) {
             個人事業税の対象業種
             <span className="text-xs text-slate-400">(非該当なら外す)</span>
           </label>
+        </div>
+
+        {/* ふるさと納税 */}
+        <div>
+          <label className={labelClass} htmlFor="furusatoDonation">
+            ふるさと納税の寄附額(年間)
+          </label>
+          <input
+            id="furusatoDonation"
+            inputMode="numeric"
+            className={`${selectClass} tabular`}
+            value={withCommas(input.furusatoDonation)}
+            onChange={(e) => update('furusatoDonation', num(e.target.value))}
+            placeholder="0"
+          />
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {furusatoLimit > 0 && (
+              <button
+                type="button"
+                className="rounded-full border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+                onClick={() => update('furusatoDonation', furusatoLimit)}
+              >
+                上限額を入れる(
+                {(furusatoLimit / 10000).toLocaleString('ja-JP')}万円)
+              </button>
+            )}
+            {input.furusatoDonation > 0 && (
+              <button
+                type="button"
+                className="rounded-full border border-slate-300 px-3 py-1 text-xs text-slate-500 hover:border-slate-400"
+                onClick={() => update('furusatoDonation', 0)}
+              >
+                クリア
+              </button>
+            )}
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">
+            実額を入れると控除と「実質負担」を概算します(0なら未利用)。
+            {manYen(input.furusatoDonation)}
+          </p>
         </div>
       </div>
     </div>

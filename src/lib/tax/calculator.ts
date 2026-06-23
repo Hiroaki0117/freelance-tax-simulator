@@ -13,6 +13,9 @@ import {
   CONSUMPTION_NATIONAL_RATE,
   DEPENDENT_DEDUCTION_INCOME_TAX,
   DEPENDENT_DEDUCTION_RESIDENT_TAX,
+  FURUSATO_RESIDENT_BASIC_RATE,
+  FURUSATO_SELF_BURDEN,
+  FURUSATO_SPECIAL_CAP_RATE,
   INCOME_TAX_BRACKETS,
   KOKUHO,
   NATIONAL_PENSION_ANNUAL,
@@ -266,12 +269,51 @@ export function calculateTax(input: TaxInput): TaxResult {
 
   // --- ふるさと納税の上限額(概算)---
   // 控除上限 ≒ 住民税所得割 × 20% ÷ (90% − 所得税率 × 1.021) + 2,000円
+  const recoveryFactor = 1 + RECOVERY_TAX_RATE; // 1.021(復興特別所得税込み)
   const furusatoNozeiLimit =
     residentIncomeLevy > 0
       ? floor1000(
-          (residentIncomeLevy * 0.2) / (0.9 - incomeTaxRate * 1.021)
-        ) + 2000
+          (residentIncomeLevy * FURUSATO_SPECIAL_CAP_RATE) /
+            (0.9 - incomeTaxRate * recoveryFactor)
+        ) + FURUSATO_SELF_BURDEN
       : 0;
+
+  // --- ふるさと納税(実額入力時の控除・実質負担)---
+  // 寄附額 X のうち (X − 2,000) が控除対象。次の3つに分かれる:
+  //  ① 所得税の還付 = (X−2,000) × 所得税率 × 1.021
+  //  ② 住民税・基本控除 = (X−2,000) × 10%
+  //  ③ 住民税・特例控除 = (X−2,000) × (90% − 所得税率×1.021) ※住民税所得割×20%が上限
+  // 上限内なら ①+②+③ = (X−2,000) となり実質負担2,000円。超過すると③が頭打ちで負担が増える。
+  const furusatoDonation = Math.max(0, Math.round(input.furusatoDonation || 0));
+  const furusatoEligible = Math.max(0, furusatoDonation - FURUSATO_SELF_BURDEN);
+  const furusatoIncomeTaxReduction =
+    furusatoDonation > 0 && incomeTax > 0
+      ? Math.round(furusatoEligible * incomeTaxRate * recoveryFactor)
+      : 0;
+  const furusatoResidentSpecialCap = Math.round(
+    residentIncomeLevy * FURUSATO_SPECIAL_CAP_RATE
+  );
+  const furusatoResidentSpecialUncapped =
+    furusatoDonation > 0 && residentIncomeLevy > 0
+      ? Math.round(furusatoEligible * (0.9 - incomeTaxRate * recoveryFactor))
+      : 0;
+  const furusatoResidentBasic =
+    furusatoDonation > 0 && residentIncomeLevy > 0
+      ? Math.round(furusatoEligible * FURUSATO_RESIDENT_BASIC_RATE)
+      : 0;
+  const furusatoResidentSpecial = Math.min(
+    furusatoResidentSpecialUncapped,
+    furusatoResidentSpecialCap
+  );
+  const furusatoResidentReduction =
+    furusatoResidentBasic + furusatoResidentSpecial;
+  const furusatoTotalBenefit =
+    furusatoIncomeTaxReduction + furusatoResidentReduction;
+  const furusatoOutOfPocket =
+    furusatoDonation > 0 ? furusatoDonation - furusatoTotalBenefit : 0;
+  const furusatoOverLimit =
+    furusatoDonation > 0 &&
+    furusatoResidentSpecialUncapped > furusatoResidentSpecialCap;
 
   // --- 集計 ---
   const taxTotal = incomeTax + residentTax + businessTax + consumptionTax;
@@ -285,7 +327,7 @@ export function calculateTax(input: TaxInput): TaxResult {
   const monthlyTakeHome = Math.floor(takeHome / 12);
 
   return {
-    input: { ...input, revenue, expenses, dependents },
+    input: { ...input, revenue, expenses, dependents, furusatoDonation },
     profit,
     blueDeductionApplied,
     businessIncome,
@@ -313,6 +355,18 @@ export function calculateTax(input: TaxInput): TaxResult {
     monthlyTaxReserve,
     monthlyTakeHome,
     furusatoNozeiLimit,
+    furusato: {
+      donation: furusatoDonation,
+      eligible: furusatoEligible,
+      incomeTaxReduction: furusatoIncomeTaxReduction,
+      residentBasic: furusatoResidentBasic,
+      residentSpecial: furusatoResidentSpecial,
+      residentSpecialCap: furusatoResidentSpecialCap,
+      residentReduction: furusatoResidentReduction,
+      totalBenefit: furusatoTotalBenefit,
+      outOfPocket: furusatoOutOfPocket,
+      overLimit: furusatoOverLimit,
+    },
     breakdown: {
       residentIncomeLevy,
       residentPerCapita,

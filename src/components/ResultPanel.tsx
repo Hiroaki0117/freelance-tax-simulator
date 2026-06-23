@@ -128,6 +128,7 @@ function Row({
 export function ResultPanel({ result }: { result: TaxResult }) {
   const r = result;
   const b = r.breakdown;
+  const f = r.furusato;
   const paysPension = r.input.insurance !== 'dependent';
 
   return (
@@ -201,7 +202,7 @@ export function ResultPanel({ result }: { result: TaxResult }) {
         </p>
       </div>
 
-      {/* ふるさと納税の上限目安 */}
+      {/* ふるさと納税 */}
       <div className="mt-4 rounded-xl bg-orange-50 px-4 py-3">
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-sm font-medium text-orange-800">
@@ -215,6 +216,42 @@ export function ResultPanel({ result }: { result: TaxResult }) {
           実質負担2,000円で済む寄附のおおよその上限(住民税所得割 × 20% ÷
           (90% − 所得税率×1.021) + 2,000円)。あくまで目安です。
         </p>
+
+        {f.donation > 0 && (
+          <div className="mt-3 space-y-1.5 border-t border-orange-200 pt-3">
+            <div className="flex items-baseline justify-between gap-2 text-sm text-orange-800">
+              <span>寄附額</span>
+              <span className="tabular">{formatYen(f.donation)}</span>
+            </div>
+            <div className="flex items-baseline justify-between gap-2 text-xs text-orange-700/90">
+              <span>
+                税の軽減(所得税 {formatYen(f.incomeTaxReduction)} + 住民税{' '}
+                {formatYen(f.residentReduction)})
+              </span>
+              <span className="tabular shrink-0">
+                − {formatYen(f.totalBenefit)}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between gap-2 rounded-md bg-orange-100 px-2 py-1.5 text-sm font-semibold text-orange-900">
+              <span>実質の自己負担</span>
+              <span className="tabular">{formatYen(f.outOfPocket)}</span>
+            </div>
+            {f.overLimit ? (
+              <p className="rounded-md bg-red-50 px-2 py-1.5 text-[11px] leading-relaxed text-red-700">
+                ⚠️ 上限(約{formatYen(r.furusatoNozeiLimit)}
+                )を超えています。超えた分は控除しきれず、実質負担が2,000円より増えます(
+                {formatYen(f.outOfPocket)})。上限内に抑えると自己負担2,000円で済みます。
+              </p>
+            ) : (
+              <p className="text-[11px] leading-relaxed text-orange-700/80">
+                上限内なので実質2,000円の負担で寄附できます(差額の
+                {formatYen(f.totalBenefit)}
+                は税が減って戻ります)。手取りへの影響もこの自己負担分だけで、別途
+                返礼品がもらえます。
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ▼ ここから詳しい内訳 */}

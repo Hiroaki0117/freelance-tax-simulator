@@ -95,3 +95,12 @@ export const SIMPLIFIED_DEEMED_PURCHASE_RATE = 0.5;
 
 /** インボイス「2割特例」の控除割合(売上税額の80%を控除) */
 export const SPECIAL_2WARI_DEDUCTION_RATE = 0.8;
+
+/** ふるさと納税:自己負担額(2,000円)。寄附額のうちこの額は控除対象外 */
+export const FURUSATO_SELF_BURDEN = 2_000;
+
+/** ふるさと納税:住民税の特例控除の上限(住民税所得割に対する割合・20%) */
+export const FURUSATO_SPECIAL_CAP_RATE = 0.2;
+
+/** ふるさと納税:住民税の基本控除の割合(寄附額 − 2,000円 の10%) */
+export const FURUSATO_RESIDENT_BASIC_RATE = 0.1;
