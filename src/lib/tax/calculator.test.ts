@@ -18,6 +18,7 @@ const base: TaxInput = {
   healthInsuranceManual: 0,
   businessTaxApplicable: true,
   age40OrOver: false,
+  furusatoDonation: 0,
 };
 
 describe('calculateIncomeTaxBase(所得税の速算)', () => {
@@ -193,6 +194,46 @@ describe('calculateTax(ふるさと納税の上限・概算)', () => {
     const r = calculateTax({ ...base, revenue: 1_000_000, expenses: 1_500_000 });
     expect(r.breakdown.residentIncomeLevy).toBe(0);
     expect(r.furusatoNozeiLimit).toBe(0);
+  });
+});
+
+describe('calculateTax(ふるさと納税の実額反映)', () => {
+  it('寄附0なら furusato ブロックは無反応', () => {
+    const r = calculateTax(base);
+    expect(r.furusato.donation).toBe(0);
+    expect(r.furusato.totalBenefit).toBe(0);
+    expect(r.furusato.outOfPocket).toBe(0);
+    expect(r.furusato.overLimit).toBe(false);
+  });
+
+  it('上限内の寄附は実質負担が2,000円(軽減 = 寄附 − 2,000)', () => {
+    // 基本ケースの上限は 84,000 円
+    const r = calculateTax({ ...base, furusatoDonation: 84_000 });
+    expect(r.furusato.overLimit).toBe(false);
+    expect(r.furusato.totalBenefit).toBe(82_000);
+    expect(r.furusato.outOfPocket).toBe(2_000);
+    // 所得税 + 住民税(基本 + 特例)の内訳が軽減合計と整合
+    expect(
+      r.furusato.incomeTaxReduction + r.furusato.residentReduction
+    ).toBe(r.furusato.totalBenefit);
+  });
+
+  it('上限超過の寄附は特例控除が頭打ちで自己負担が増える', () => {
+    const r = calculateTax({ ...base, furusatoDonation: 150_000 });
+    expect(r.furusato.overLimit).toBe(true);
+    expect(r.furusato.residentSpecial).toBe(r.furusato.residentSpecialCap);
+    expect(r.furusato.outOfPocket).toBeGreaterThan(2_000);
+  });
+
+  it('住民税の所得割が0なら寄附しても軽減は出ない', () => {
+    const r = calculateTax({
+      ...base,
+      revenue: 1_000_000,
+      expenses: 1_500_000,
+      furusatoDonation: 30_000,
+    });
+    expect(r.furusatoNozeiLimit).toBe(0);
+    expect(r.furusato.totalBenefit).toBe(0);
   });
 });
 
