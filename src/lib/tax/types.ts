@@ -39,6 +39,8 @@ export interface TaxInput {
   businessTaxApplicable: boolean;
   /** 40歳以上か(国保の介護分の有無に影響) */
   age40OrOver: boolean;
+  /** ふるさと納税の年間寄附額(実額・円)。0なら未利用 */
+  furusatoDonation: number;
 }
 
 /** 所得控除の内訳 */
@@ -94,6 +96,20 @@ export interface TaxResult {
 
   // ふるさと納税(実質負担2,000円で済む寄附の上限額・概算)
   furusatoNozeiLimit: number;
+
+  // ふるさと納税(実額入力時の控除・実質負担の概算)
+  furusato: {
+    donation: number; // 入力された年間寄附額
+    eligible: number; // 控除対象額(寄附額 − 自己負担2,000円)
+    incomeTaxReduction: number; // 所得税の軽減(還付)
+    residentBasic: number; // 住民税:基本控除((寄附額−2,000)×10%)
+    residentSpecial: number; // 住民税:特例控除(上限適用後)
+    residentSpecialCap: number; // 特例控除の上限(住民税所得割×20%)
+    residentReduction: number; // 住民税の軽減合計(基本 + 特例)
+    totalBenefit: number; // 税の軽減合計(所得税 + 住民税)
+    outOfPocket: number; // 実質負担(寄附額 − 軽減合計)
+    overLimit: boolean; // 上限超過(特例控除が頭打ち)か
+  };
 
   // 計算内訳(UIのクリック展開・AIの説明用)
   breakdown: {

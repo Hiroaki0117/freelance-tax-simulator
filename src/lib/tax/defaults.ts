@@ -12,4 +12,5 @@ export const DEFAULT_INPUT: TaxInput = {
   healthInsuranceManual: 0,
   businessTaxApplicable: true,
   age40OrOver: false,
+  furusatoDonation: 0,
 };

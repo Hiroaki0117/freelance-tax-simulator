@@ -17,7 +17,11 @@ export function Simulator() {
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="space-y-6 lg:sticky lg:top-8 lg:self-start">
-          <SimulatorForm input={input} onChange={setInput} />
+          <SimulatorForm
+            input={input}
+            onChange={setInput}
+            furusatoLimit={result.furusatoNozeiLimit}
+          />
         </section>
         <section className="space-y-6">
           <ResultPanel result={result} />

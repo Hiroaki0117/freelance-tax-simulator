@@ -72,6 +72,7 @@ function sanitizeInput(raw: unknown): TaxInput {
         ? true
         : Boolean(r.businessTaxApplicable),
     age40OrOver: Boolean(r.age40OrOver),
+    furusatoDonation: cap(r.furusatoDonation),
   };
 }
 
@@ -94,6 +95,10 @@ function summarize(result: TaxResult) {
     税の月割り: result.monthlyTaxReserve,
     毎月の手取り: result.monthlyTakeHome,
     ふるさと納税の上限目安: result.furusatoNozeiLimit,
+    ふるさと納税の寄附額: result.furusato.donation,
+    ふるさと納税の税軽減: result.furusato.totalBenefit,
+    ふるさと納税の実質負担: result.furusato.outOfPocket,
+    ふるさと納税が上限超過: result.furusato.overLimit,
   };
 }
 
@@ -135,6 +140,11 @@ const SIMULATE_TOOL: Anthropic.Tool = {
         description: '個人事業税の対象業種か(非該当なら false で0円)',
       },
       age40OrOver: { type: 'boolean', description: '40歳以上か' },
+      furusatoDonation: {
+        type: 'number',
+        description:
+          'ふるさと納税の年間寄附額(円)。控除を所得税・住民税に反映し、実質負担(上限内なら約2,000円)を概算する',
+      },
     },
     required: [],
   },

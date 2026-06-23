@@ -55,5 +55,8 @@ export function describeInput(input: TaxInput): string {
     input.hasSpouse ? '配偶者あり(扶養)' : '配偶者なし',
     `扶養親族 ${input.dependents}人`
   );
+  if (input.furusatoDonation > 0) {
+    parts.push(`ふるさと納税 ${formatYen(input.furusatoDonation)}`);
+  }
   return parts.join(' / ');
 }
