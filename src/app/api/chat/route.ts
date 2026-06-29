@@ -31,7 +31,7 @@ function rateLimited(ip: string): boolean {
   return arr.length > RATE_LIMIT;
 }
 
-const FILING_TYPES: FilingType[] = ['blue65', 'blue10', 'white'];
+const FILING_TYPES: FilingType[] = ['blue65', 'blue55', 'blue10', 'white'];
 const CONSUMPTION_MODES: ConsumptionTaxMode[] = [
   'exempt',
   'special2wari',
@@ -116,7 +116,7 @@ const SIMULATE_TOOL: Anthropic.Tool = {
       filingType: {
         type: 'string',
         enum: FILING_TYPES,
-        description: '青色65万/青色10万/白色',
+        description: '青色65万/青色55万/青色10万/白色',
       },
       hasSpouse: { type: 'boolean', description: '配偶者を扶養しているか' },
       dependents: { type: 'integer', description: '扶養親族(16歳以上)の人数' },

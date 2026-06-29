@@ -19,6 +19,7 @@ export function formatPercent(ratio: number, digits = 1): string {
 
 export const FILING_LABELS: Record<FilingType, string> = {
   blue65: '青色申告(65万円控除)',
+  blue55: '青色申告(55万円控除)',
   blue10: '青色申告(10万円控除)',
   white: '白色申告',
 };

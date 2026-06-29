@@ -9,7 +9,8 @@ export const TAX_YEAR = 2024;
 
 /** 青色申告特別控除の額 */
 export const BLUE_DEDUCTION = {
-  blue65: 650_000, // 複式簿記 + e-Tax(電子申告)
+  blue65: 650_000, // 複式簿記 + e-Tax(電子申告)または電子帳簿保存
+  blue55: 550_000, // 複式簿記 + 書面(紙)で提出
   blue10: 100_000, // 簡易簿記
   white: 0, // 白色申告
 } as const;
