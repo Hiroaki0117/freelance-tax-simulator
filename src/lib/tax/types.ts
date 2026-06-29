@@ -1,7 +1,7 @@
 // 税金シミュレーターの入出力型
 
 /** 申告区分(青色申告特別控除の額に対応) */
-export type FilingType = 'blue65' | 'blue10' | 'white';
+export type FilingType = 'blue65' | 'blue55' | 'blue10' | 'white';
 
 /** 消費税の課税区分 */
 export type ConsumptionTaxMode =
