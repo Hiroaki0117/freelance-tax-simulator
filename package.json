@@ -2,7 +2,7 @@
   "name": "freelance-tax-simulator",
   "version": "0.1.0",
   "private": true,
-  "description": "フリーランス/個人事業主向け 税金&手取り 概算シミュレーター × AI対話",
+  "description": "フリーランスの手取りざっくりシミュレーター(税金&手取りの概算ツール)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

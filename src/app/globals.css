@@ -1,8 +1,8 @@
 @import 'tailwindcss';
 
 :root {
-  --background: #f7f8fa;
-  --foreground: #14181f;
+  --background: #faf5ec;
+  --foreground: #3e3a33;
 }
 
 @theme inline {
@@ -11,6 +11,19 @@
   --font-sans:
     ui-sans-serif, system-ui, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
     'Noto Sans JP', Meiryo, sans-serif;
+}
+
+@theme {
+  /* あたたかミニマル(案A)のパレット */
+  --color-cream-50: #fcfaf4;
+  --color-cream-100: #f6f0e3;
+  --color-cream-200: #efe7d6;
+  --color-cream-300: #e0d6bf;
+  --color-ink-900: #3e3a33;
+  --color-ink-600: #6b655b;
+  --color-ink-500: #8a8377;
+  --color-ink-400: #a79e8c;
+  --shadow-warm: 0 6px 24px rgba(120, 100, 60, 0.1);
 }
 
 html {
@@ -27,4 +40,19 @@ body {
 /* 数値はタブ表示で桁を揃える */
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* 結果パネルのふわっと表示 */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise-in {
+  animation: rise-in 0.5s ease-out both;
 }
