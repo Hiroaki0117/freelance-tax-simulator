@@ -1,33 +1,154 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { calculateTax } from '@/lib/tax/calculator';
 import { DEFAULT_INPUT } from '@/lib/tax/defaults';
+import { TAX_YEAR } from '@/lib/tax/constants';
 import type { TaxInput } from '@/lib/tax/types';
+import {
+  CONSUMPTION_LABELS,
+  FILING_LABELS,
+  INSURANCE_LABELS,
+} from '@/lib/tax/format';
 import { SimulatorForm } from './SimulatorForm';
 import { ResultPanel } from './ResultPanel';
-import { ChatPanel } from './ChatPanel';
+
+/** 最初は空でスタート(結果は自分で売上をいれてから) */
+const INITIAL_INPUT: TaxInput = { ...DEFAULT_INPUT, revenue: 0, expenses: 0 };
+
+const REVENUE_PRESETS = [4_000_000, 6_000_000, 8_000_000];
+
+/** 経費を自分で触るまでの仮置き比率 */
+const ASSUMED_EXPENSE_RATE = 0.2;
+
+function num(value: string): number {
+  const n = Number(value.replace(/[^0-9]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
 
 export function Simulator() {
-  const [input, setInput] = useState<TaxInput>(DEFAULT_INPUT);
+  const [input, setInput] = useState<TaxInput>(INITIAL_INPUT);
+  const [expensesTouched, setExpensesTouched] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const revenueRef = useRef<HTMLInputElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
 
   const result = useMemo(() => calculateTax(input), [input]);
+  const hasResult = input.revenue > 0;
+
+  function setRevenue(revenue: number) {
+    setInput((prev) => ({
+      ...prev,
+      revenue,
+      expenses: expensesTouched
+        ? prev.expenses
+        : Math.round((revenue * ASSUMED_EXPENSE_RATE) / 10000) * 10000,
+    }));
+  }
+
+  function handleFormChange(next: TaxInput) {
+    if (next.expenses !== input.expenses) setExpensesTouched(true);
+    setInput(next);
+  }
+
+  function handleCta() {
+    if (hasResult) {
+      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      revenueRef.current?.focus();
+    }
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="space-y-6 lg:sticky lg:top-8 lg:self-start">
+    <div>
+      {/* 入力カード(ファーストビュー) */}
+      <div className="rounded-3xl bg-white p-6 shadow-warm">
+        <label
+          className="block text-sm font-bold text-ink-900"
+          htmlFor="revenue"
+        >
+          去年(または今年見込み)の売上
+        </label>
+        <input
+          id="revenue"
+          ref={revenueRef}
+          inputMode="numeric"
+          className="tabular mt-2 w-full rounded-2xl border-2 border-cream-200 bg-cream-50 px-4 py-3.5 text-2xl font-bold text-ink-900 placeholder:text-ink-400/60 focus:border-emerald-500 focus:outline-none"
+          value={input.revenue ? input.revenue.toLocaleString('ja-JP') : ''}
+          onChange={(e) => setRevenue(num(e.target.value))}
+          placeholder="例: 6,000,000"
+        />
+        <div className="mt-3 flex flex-wrap gap-2">
+          {REVENUE_PRESETS.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => setRevenue(preset)}
+              className={`rounded-full border-[1.5px] px-4 py-1.5 text-sm font-semibold transition-colors ${
+                input.revenue === preset
+                  ? 'border-emerald-600 bg-emerald-600/10 text-emerald-700'
+                  : 'border-cream-300 bg-white text-ink-600 hover:border-emerald-400 hover:text-emerald-700'
+              }`}
+            >
+              {preset / 10000}万
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((o) => !o)}
+            aria-expanded={detailsOpen}
+            className="rounded-full border-[1.5px] border-dashed border-cream-300 px-4 py-1.5 text-sm font-medium text-ink-500 transition-colors hover:border-emerald-400 hover:text-emerald-700"
+          >
+            経費・申告区分もいれる {detailsOpen ? '▴' : '▾'}
+          </button>
+        </div>
+
+        {!detailsOpen && hasResult && (
+          <p className="mt-3 text-[11px] leading-relaxed text-ink-400">
+            いまの前提: 経費
+            {expensesTouched
+              ? ` ${(input.expenses / 10000).toLocaleString('ja-JP')}万円`
+              : ' 売上の20%(仮置き)'}
+            ・{FILING_LABELS[input.filingType]}・
+            {CONSUMPTION_LABELS[input.consumptionTax]}・
+            {INSURANCE_LABELS[input.insurance]}
+            。変えたいときは上の「経費・申告区分もいれる」から。
+          </p>
+        )}
+
+        {detailsOpen && (
           <SimulatorForm
             input={input}
-            onChange={setInput}
+            onChange={handleFormChange}
             furusatoLimit={result.furusatoNozeiLimit}
+            expensesAssumed={!expensesTouched && hasResult}
           />
-        </section>
-        <section className="space-y-6">
-          <ResultPanel result={result} />
-        </section>
+        )}
+
+        <button
+          type="button"
+          onClick={handleCta}
+          className="mt-5 w-full rounded-2xl bg-emerald-600 px-4 py-4 text-lg font-bold text-white shadow-[0_8px_18px_rgba(5,150,105,0.28)] transition-colors hover:bg-emerald-700"
+        >
+          {hasResult ? '結果をみる' : 'ざっくり計算する'}
+        </button>
       </div>
-      <ChatPanel input={input} result={result} />
+
+      <p className="mt-3.5 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-ink-400">
+        <span>✓ 登録なし</span>
+        <span>✓ 入力は保存されません</span>
+        <span>✓ {TAX_YEAR}年度版</span>
+      </p>
+
+      {/* 結果(売上をいれると出る) */}
+      {hasResult && (
+        <div ref={resultRef} className="rise-in mt-6 scroll-mt-4">
+          <ResultPanel result={result} expensesAssumed={!expensesTouched} />
+        </div>
+      )}
+
+      {/* AIチャット(ChatPanel)は一時非表示中。復活させるときは import と
+          <ChatPanel input={input} result={result} /> を戻す。 */}
     </div>
   );
 }
