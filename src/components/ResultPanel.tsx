@@ -185,6 +185,62 @@ function BreakdownBar({
   );
 }
 
+const MONTH_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+
+/** 「まとめて来る税」が何月にいくら来るかを棒グラフで一目に見せる(目安) */
+function TaxCalendar({ result }: { result: TaxResult }) {
+  const r = result;
+  // 月ごとの一括納付額(ざっくり・目安)。index 0 = 1月
+  const dues = new Array(12).fill(0) as number[];
+  dues[2] += r.incomeTax + r.consumptionTax; // 3月:所得税・消費税
+  [5, 7, 9, 0].forEach((m) => (dues[m] += r.residentTax / 4)); // 住民税:6・8・10・翌1月
+  [7, 10].forEach((m) => (dues[m] += r.businessTax / 2)); // 事業税:8・11月
+  const max = Math.max(...dues);
+  if (max <= 0) return null;
+  const peak = dues.indexOf(max);
+
+  return (
+    <div>
+      <div className="grid grid-cols-12 gap-1">
+        {dues.map((d, i) => {
+          const isPeak = i === peak;
+          return (
+            <div key={i} className="flex flex-col items-center gap-1">
+              <div className="flex h-20 w-full items-end">
+                <div
+                  className={`w-full rounded-t transition-[height] duration-500 ${
+                    d <= 0
+                      ? 'bg-cream-200'
+                      : isPeak
+                        ? 'bg-amber-500'
+                        : 'bg-amber-300'
+                  }`}
+                  style={{
+                    height: d > 0 ? `${Math.max((d / max) * 100, 8)}%` : '4px',
+                  }}
+                  title={d > 0 ? `${i + 1}月 ${formatYen(d)}` : `${i + 1}月`}
+                />
+              </div>
+              <span
+                className={`text-[9px] ${isPeak ? 'font-bold text-amber-700' : 'text-ink-400'}`}
+              >
+                {MONTH_LABELS[i]}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-2 text-center text-xs text-ink-500">
+        いちばんの山は{' '}
+        <span className="font-bold text-amber-700">{peak + 1}月</span> の{' '}
+        <span className="tabular font-bold text-amber-700">
+          約{man(dues[peak])}万円
+        </span>
+      </p>
+    </div>
+  );
+}
+
 export function ResultPanel({
   result,
   expensesAssumed,
@@ -304,11 +360,23 @@ export function ResultPanel({
               </p>
             </div>
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-ink-500">
-            「税の月割り」は1年ぶんの税を12で割った額です。国保・年金は毎月払いですが、
-            残りの税は来る時期がバラバラ(所得税・消費税は一括、住民税は年4回、事業税は年2回)。
-            この月割りぶんを毎月よけておくと、納付の月も慌てません。
-          </p>
+
+          {/* 税はいつドカッと来る?(納税カレンダー) */}
+          <div className="mt-4 border-t border-cream-200 pt-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-sm font-bold text-ink-900">
+                税金がドカッと来る月
+              </p>
+              <p className="text-[10px] text-ink-400">目安</p>
+            </div>
+            <p className="mb-2.5 mt-0.5 text-xs text-ink-500">
+              国保・年金は毎月。ほかの税はまとめて来ます。
+            </p>
+            <TaxCalendar result={r} />
+            <p className="mt-2.5 text-xs leading-relaxed text-ink-500">
+              👆 だから上の「税の月割り」を毎月よけておくと、山が来ても慌てません。
+            </p>
+          </div>
         </div>
 
         {/* ふるさと納税 */}
