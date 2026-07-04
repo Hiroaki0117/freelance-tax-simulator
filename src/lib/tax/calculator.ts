@@ -4,7 +4,7 @@
 // すべて概算であり、正確な金額は確定申告・税理士で確認する前提(免責は UI 側にも明記)。
 
 import {
-  BASIC_DEDUCTION_INCOME_TAX,
+  BASIC_DEDUCTION_INCOME_TAX_BRACKETS,
   BASIC_DEDUCTION_RESIDENT_TAX,
   BLUE_DEDUCTION,
   BUSINESS_TAX_DEDUCTION,
@@ -42,6 +42,19 @@ function floor100(value: number): number {
 /** 1,000円未満を切り捨てる(課税所得・課税標準の端数処理) */
 function floor1000(value: number): number {
   return Math.floor(value / 1000) * 1000;
+}
+
+/**
+ * 基礎控除(所得税・令和7年分)を合計所得金額から求める。
+ * 令和7年度税制改正で所得に応じた段階制(95万〜58万円+高所得の逓減)になった。
+ */
+export function calculateBasicDeductionIncomeTax(totalIncome: number): number {
+  const bracket =
+    BASIC_DEDUCTION_INCOME_TAX_BRACKETS.find((b) => totalIncome <= b.limit) ??
+    BASIC_DEDUCTION_INCOME_TAX_BRACKETS[
+      BASIC_DEDUCTION_INCOME_TAX_BRACKETS.length - 1
+    ];
+  return bracket.deduction;
 }
 
 /** 所得税(復興税前)と限界税率・速算控除を求める */
@@ -203,7 +216,7 @@ export function calculateTax(input: TaxInput): TaxResult {
 
   // --- 所得税 ---
   const incomeTaxDeductions: DeductionBreakdown = {
-    basic: BASIC_DEDUCTION_INCOME_TAX,
+    basic: calculateBasicDeductionIncomeTax(businessIncome),
     socialInsurance: socialInsuranceTotal,
     spouse: input.hasSpouse ? SPOUSE_DEDUCTION_INCOME_TAX : 0,
     dependents: dependents * DEPENDENT_DEDUCTION_INCOME_TAX,

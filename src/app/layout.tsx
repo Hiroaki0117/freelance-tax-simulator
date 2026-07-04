@@ -2,15 +2,15 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 const SITE_URL = 'https://freelance-tax-simulator.vercel.app';
-const SITE_NAME = 'フリーランス税金シミュレーター × AI対話';
+const SITE_NAME = 'フリーランスの手取りざっくりシミュレーター';
 const SITE_DESCRIPTION =
-  'フリーランスの手取り・税金をまるごとザックリ概算。「この国保なんで高い?」など数字の意味や次の一手をAIに相談できる無料ツール。';
+  '売上をいれるだけ。所得税・住民税・国保・年金・事業税・消費税をぜんぶ込みで、フリーランスの手取りをざっくり概算する無料ツール。';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: SITE_NAME,
   description:
-    'フリーランス/個人事業主の「結局いくら残る?いくら取られる?」に即答。所得税・住民税・国保・年金・事業税・消費税と手取りをまるごとザックリ概算。さらに「この国保なんでこの額?」「毎月いくら貯める?」など、数字の意味と次の一手をAIに相談できる無料ツール。',
+    'フリーランス/個人事業主の「結局いくら残る?いくら取られる?」に即答。売上をいれるだけで、所得税・住民税・国保・年金・事業税・消費税と手取りをまるごとざっくり概算する無料ツール。登録不要・入力は保存されません。',
   openGraph: {
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
