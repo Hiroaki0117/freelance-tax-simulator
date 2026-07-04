@@ -185,58 +185,128 @@ function BreakdownBar({
   );
 }
 
-const MONTH_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+/** 表示は年度に合わせて4月始まり(index は 0=1月) */
+const MONTH_ORDER = [3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2];
 
-/** 「まとめて来る税」が何月にいくら来るかを棒グラフで一目に見せる(目安) */
+interface DueItem {
+  label: string;
+  amount: number;
+}
+
+/** 税の納付スケジュールを棒グラフで見せ、月をタップで内訳を表示する(目安) */
 function TaxCalendar({ result }: { result: TaxResult }) {
   const r = result;
-  // 月ごとの一括納付額(ざっくり・目安)。index 0 = 1月
-  const dues = new Array(12).fill(0) as number[];
-  dues[2] += r.incomeTax + r.consumptionTax; // 3月:所得税・消費税
-  [5, 7, 9, 0].forEach((m) => (dues[m] += r.residentTax / 4)); // 住民税:6・8・10・翌1月
-  [7, 10].forEach((m) => (dues[m] += r.businessTax / 2)); // 事業税:8・11月
-  const max = Math.max(...dues);
+  const monthlyFixed = (r.nationalPension + r.healthInsurance) / 12;
+
+  // 月ごとの「まとめて来る税」の内訳(index 0 = 1月)
+  const items: DueItem[][] = Array.from({ length: 12 }, () => []);
+  if (r.incomeTax > 0) items[2].push({ label: '所得税', amount: r.incomeTax });
+  if (r.consumptionTax > 0)
+    items[2].push({ label: '消費税', amount: r.consumptionTax });
+  if (r.residentTax > 0) {
+    const inst: [number, string][] = [
+      [5, '1期'],
+      [7, '2期'],
+      [9, '3期'],
+      [0, '4期'],
+    ];
+    inst.forEach(([m, k]) =>
+      items[m].push({ label: `住民税(${k})`, amount: r.residentTax / 4 })
+    );
+  }
+  if (r.businessTax > 0) {
+    const inst: [number, string][] = [
+      [7, '1期'],
+      [10, '2期'],
+    ];
+    inst.forEach(([m, k]) =>
+      items[m].push({ label: `個人事業税(${k})`, amount: r.businessTax / 2 })
+    );
+  }
+
+  const lump = items.map((ms) => ms.reduce((a, x) => a + x.amount, 0));
+  const max = Math.max(...lump);
+  const peak = lump.indexOf(max);
+  const [selected, setSelected] = useState(peak);
+
   if (max <= 0) return null;
-  const peak = dues.indexOf(max);
+  const selItems = items[selected];
+  const selTotal = monthlyFixed + lump[selected];
 
   return (
     <div>
       <div className="grid grid-cols-12 gap-1">
-        {dues.map((d, i) => {
-          const isPeak = i === peak;
+        {MONTH_ORDER.map((m) => {
+          const d = lump[m];
+          const isSel = m === selected;
           return (
-            <div key={i} className="flex flex-col items-center gap-1">
+            <button
+              type="button"
+              key={m}
+              onClick={() => setSelected(m)}
+              aria-label={`${m + 1}月の内訳`}
+              aria-pressed={isSel}
+              className="flex flex-col items-center gap-1"
+            >
               <div className="flex h-20 w-full items-end">
                 <div
                   className={`w-full rounded-t transition-[height] duration-500 ${
                     d <= 0
                       ? 'bg-cream-200'
-                      : isPeak
+                      : isSel
                         ? 'bg-amber-500'
-                        : 'bg-amber-300'
+                        : 'bg-amber-300 hover:bg-amber-400'
                   }`}
                   style={{
                     height: d > 0 ? `${Math.max((d / max) * 100, 8)}%` : '4px',
                   }}
-                  title={d > 0 ? `${i + 1}月 ${formatYen(d)}` : `${i + 1}月`}
                 />
               </div>
               <span
-                className={`text-[9px] ${isPeak ? 'font-bold text-amber-700' : 'text-ink-400'}`}
+                className={`text-[9px] ${isSel ? 'font-bold text-amber-700' : 'text-ink-400'}`}
               >
-                {MONTH_LABELS[i]}
+                {m + 1}
               </span>
-            </div>
+            </button>
           );
         })}
       </div>
-      <p className="mt-2 text-center text-xs text-ink-500">
-        いちばんの山は{' '}
-        <span className="font-bold text-amber-700">{peak + 1}月</span> の{' '}
-        <span className="tabular font-bold text-amber-700">
-          約{man(dues[peak])}万円
-        </span>
-      </p>
+
+      {/* 選んだ月に払うもの */}
+      <div className="mt-3 rounded-xl bg-cream-100 px-3 py-2.5">
+        <p className="text-xs font-bold text-ink-900">
+          {selected + 1}月に払うもの
+        </p>
+        <div className="mt-1.5 space-y-1 text-xs text-ink-600">
+          <div className="flex items-baseline justify-between gap-2">
+            <span>
+              国保・年金
+              <span className="ml-1 text-[10px] text-ink-400">(毎月)</span>
+            </span>
+            <span className="tabular">{formatYen(monthlyFixed)}</span>
+          </div>
+          {selItems.map((x) => (
+            <div
+              key={x.label}
+              className="flex items-baseline justify-between gap-2 font-medium text-amber-700"
+            >
+              <span>{x.label}</span>
+              <span className="tabular">{formatYen(x.amount)}</span>
+            </div>
+          ))}
+          {selItems.length > 0 && (
+            <div className="flex items-baseline justify-between gap-2 border-t border-cream-300 pt-1 font-bold text-ink-900">
+              <span>この月の合計</span>
+              <span className="tabular">{formatYen(selTotal)}</span>
+            </div>
+          )}
+        </div>
+        {selItems.length === 0 && (
+          <p className="mt-1 text-[11px] text-ink-400">
+            この月は国保・年金だけ(まとめて来る税はなし)。
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -361,21 +431,18 @@ export function ResultPanel({
             </div>
           </div>
 
-          {/* 税はいつドカッと来る?(納税カレンダー) */}
+          {/* 税金支払いスケジュール(納税カレンダー) */}
           <div className="mt-4 border-t border-cream-200 pt-3">
             <div className="flex items-baseline justify-between gap-2">
               <p className="text-sm font-bold text-ink-900">
-                税金がドカッと来る月
+                税金支払いスケジュール
               </p>
-              <p className="text-[10px] text-ink-400">目安</p>
+              <p className="text-[10px] text-ink-400">月をタップで内訳</p>
             </div>
             <p className="mb-2.5 mt-0.5 text-xs text-ink-500">
               国保・年金は毎月。ほかの税はまとめて来ます。
             </p>
             <TaxCalendar result={r} />
-            <p className="mt-2.5 text-xs leading-relaxed text-ink-500">
-              👆 だから上の「税の月割り」を毎月よけておくと、山が来ても慌てません。
-            </p>
           </div>
         </div>
 
