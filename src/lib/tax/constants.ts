@@ -1,11 +1,16 @@
 // 税率・控除のテーブル(年度別の定数)
 //
-// すべて「令和6年度(2024年)」を前提とした概算用の値。
+// すべて「令和7年(2025年)分」を前提とした概算用の値。
 // 毎年更新する前提で、計算ロジックから定数を分離している。
 // 細かい特例(調整控除・特定扶養・自治体差など)はあえて省いた「ざっくり」版。
+//
+// 将来の更新メモ:
+// - 令和8年分は基礎控除の本則が62万円+特例再設計の見込み(令和8年度改正大綱)
+// - 令和8年度は国保の賦課限度額に「子ども・子育て支援納付金分」(新区分)が加わる見込み
+// - 令和9年1月から復興特別所得税2.1%が「復興1.1%+防衛1.0%」に分かれる(合計は同じ)
 
-/** 適用年度(表示・将来の切り替え用) */
-export const TAX_YEAR = 2024;
+/** 適用年分(表示・将来の切り替え用) */
+export const TAX_YEAR = 2025;
 
 /** 青色申告特別控除の額 */
 export const BLUE_DEDUCTION = {
@@ -15,10 +20,27 @@ export const BLUE_DEDUCTION = {
   white: 0, // 白色申告
 } as const;
 
-/** 基礎控除(所得税)。合計所得2,400万円以下を前提 */
-export const BASIC_DEDUCTION_INCOME_TAX = 480_000;
+/**
+ * 基礎控除(所得税・令和7年分)
+ *
+ * 令和7年度税制改正で本則48万円→58万円に引き上げ。さらに合計所得655万円以下には
+ * 令和7・8年分限定の上乗せ特例があり、合計所得金額に応じて段階的に決まる。
+ * 2,350万円超は従来どおり逓減し2,500万円超で消失。
+ * (このツールでは合計所得金額 = 事業所得として判定する)
+ */
+export const BASIC_DEDUCTION_INCOME_TAX_BRACKETS = [
+  { limit: 1_320_000, deduction: 950_000 },
+  { limit: 3_360_000, deduction: 880_000 },
+  { limit: 4_890_000, deduction: 680_000 },
+  { limit: 6_550_000, deduction: 630_000 },
+  { limit: 23_500_000, deduction: 580_000 },
+  { limit: 24_000_000, deduction: 480_000 },
+  { limit: 24_500_000, deduction: 320_000 },
+  { limit: 25_000_000, deduction: 160_000 },
+  { limit: Infinity, deduction: 0 },
+] as const;
 
-/** 基礎控除(住民税)。合計所得2,400万円以下を前提 */
+/** 基礎控除(住民税)。令和7年度改正でも43万円で据え置き(所得税とは連動しない) */
 export const BASIC_DEDUCTION_RESIDENT_TAX = 430_000;
 
 /** 配偶者控除(本人の合計所得900万円以下・一般を前提) */
@@ -29,9 +51,9 @@ export const SPOUSE_DEDUCTION_RESIDENT_TAX = 330_000;
 export const DEPENDENT_DEDUCTION_INCOME_TAX = 380_000;
 export const DEPENDENT_DEDUCTION_RESIDENT_TAX = 330_000;
 
-/** 国民年金保険料(令和6年度:月16,980円) */
-export const NATIONAL_PENSION_MONTHLY = 16_980;
-export const NATIONAL_PENSION_ANNUAL = NATIONAL_PENSION_MONTHLY * 12; // 203,760円
+/** 国民年金保険料(令和7年度:月17,510円。毎年度改定されるので要更新。令和8年度は17,920円) */
+export const NATIONAL_PENSION_MONTHLY = 17_510;
+export const NATIONAL_PENSION_ANNUAL = NATIONAL_PENSION_MONTHLY * 12; // 210,120円
 
 /**
  * 所得税の速算表(令和6年分)
@@ -76,12 +98,12 @@ export const KOKUHO = {
   under40: {
     incomeLevyRate: 0.099, // 医療分 + 後期高齢者支援分(目安)
     perCapita: 50_000, // 均等割(被保険者1人あたり・目安)
-    cap: 890_000, // 賦課限度額(医療65万 + 支援24万)
+    cap: 920_000, // 賦課限度額(令和7年度: 医療66万 + 支援26万)
   },
   over40: {
     incomeLevyRate: 0.118, // 上記 + 介護分(目安)
     perCapita: 65_000, // 介護分の均等割を上乗せ(目安)
-    cap: 1_060_000, // 賦課限度額(+ 介護17万)
+    cap: 1_090_000, // 賦課限度額(令和7年度: + 介護17万)
   },
 } as const;
 

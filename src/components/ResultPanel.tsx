@@ -7,7 +7,10 @@ import {
   formatPercent,
   formatYen,
 } from '@/lib/tax/format';
-import { INCOME_TAX_BRACKETS } from '@/lib/tax/constants';
+import {
+  INCOME_TAX_BRACKETS,
+  NATIONAL_PENSION_MONTHLY,
+} from '@/lib/tax/constants';
 import { DISCLAIMER_SHORT } from '@/lib/disclaimer';
 
 interface DetailRow {
@@ -369,7 +372,7 @@ export function ResultPanel({
             detail={[
               {
                 label:
-                  '所得から引いてもらえる「税金がかからない枠」。多いほど所得税・住民税が安くなります。',
+                  '所得から引いてもらえる「税金がかからない枠」。基礎控除は令和7年分から所得に応じて58万〜95万円に拡大されました。',
                 note: true,
               },
               {
@@ -620,7 +623,7 @@ export function ResultPanel({
                       note: true,
                     },
                     {
-                      label: '月16,980円 × 12(本人分)',
+                      label: `月${NATIONAL_PENSION_MONTHLY.toLocaleString('ja-JP')}円 × 12(本人分)`,
                       value: formatYen(r.nationalPension),
                     },
                   ]
