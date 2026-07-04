@@ -101,21 +101,40 @@ export function Simulator() {
             aria-expanded={detailsOpen}
             className="rounded-full border-[1.5px] border-dashed border-cream-300 px-4 py-1.5 text-sm font-medium text-ink-500 transition-colors hover:border-emerald-400 hover:text-emerald-700"
           >
-            経費・申告区分もいれる {detailsOpen ? '▴' : '▾'}
+            詳細を入力する {detailsOpen ? '▴' : '▾'}
           </button>
         </div>
 
         {!detailsOpen && hasResult && (
-          <p className="mt-3 text-[11px] leading-relaxed text-ink-400">
-            いまの前提: 経費
-            {expensesTouched
-              ? ` ${(input.expenses / 10000).toLocaleString('ja-JP')}万円`
-              : ' 売上の20%(仮置き)'}
-            ・{FILING_LABELS[input.filingType]}・
-            {CONSUMPTION_LABELS[input.consumptionTax]}・
-            {INSURANCE_LABELS[input.insurance]}
-            。変えたいときは上の「経費・申告区分もいれる」から。
-          </p>
+          <div className="mt-3 rounded-xl bg-cream-50 px-3.5 py-3 text-xs leading-relaxed text-ink-500">
+            <p className="font-bold text-ink-600">いまの計算の前提</p>
+            <ul className="mt-1.5 space-y-1">
+              <li className="flex gap-1.5">
+                <span className="text-emerald-600">・</span>
+                <span>
+                  経費:{' '}
+                  {expensesTouched
+                    ? `${(input.expenses / 10000).toLocaleString('ja-JP')}万円`
+                    : '売上の20%で仮置き'}
+                </span>
+              </li>
+              <li className="flex gap-1.5">
+                <span className="text-emerald-600">・</span>
+                <span>申告: {FILING_LABELS[input.filingType]}</span>
+              </li>
+              <li className="flex gap-1.5">
+                <span className="text-emerald-600">・</span>
+                <span>消費税: {CONSUMPTION_LABELS[input.consumptionTax]}</span>
+              </li>
+              <li className="flex gap-1.5">
+                <span className="text-emerald-600">・</span>
+                <span>保険: {INSURANCE_LABELS[input.insurance]}</span>
+              </li>
+            </ul>
+            <p className="mt-1.5 text-[11px] text-ink-400">
+              変えたいときは「詳細を入力する」から。
+            </p>
+          </div>
         )}
 
         {detailsOpen && (
