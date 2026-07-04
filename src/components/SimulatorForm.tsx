@@ -60,7 +60,7 @@ export function SimulatorForm({
           label="年間経費(ざっくり)"
           value={input.expenses}
           onChange={(v) => update('expenses', v)}
-          placeholder="1,200,000"
+          placeholder="例: 120"
           quick={[0.1, 0.2, 0.3].map((rate) => ({
             label: `売上の${rate * 100}%`,
             value: Math.round(input.revenue * rate),

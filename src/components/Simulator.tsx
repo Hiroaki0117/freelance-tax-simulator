@@ -12,6 +12,7 @@ import {
 } from '@/lib/tax/format';
 import { SimulatorForm } from './SimulatorForm';
 import { ResultPanel } from './ResultPanel';
+import { ManInput } from './ManInput';
 
 /** 最初は空でスタート(結果は自分で売上をいれてから) */
 const INITIAL_INPUT: TaxInput = { ...DEFAULT_INPUT, revenue: 0, expenses: 0 };
@@ -20,11 +21,6 @@ const REVENUE_PRESETS = [4_000_000, 6_000_000, 8_000_000];
 
 /** 経費を自分で触るまでの仮置き比率 */
 const ASSUMED_EXPENSE_RATE = 0.2;
-
-function num(value: string): number {
-  const n = Number(value.replace(/[^0-9]/g, ''));
-  return Number.isFinite(n) ? n : 0;
-}
 
 export function Simulator() {
   const [input, setInput] = useState<TaxInput>(INITIAL_INPUT);
@@ -69,15 +65,21 @@ export function Simulator() {
         >
           去年(または今年見込み)の売上
         </label>
-        <input
+        <ManInput
           id="revenue"
-          ref={revenueRef}
-          inputMode="numeric"
-          className="tabular mt-2 w-full rounded-2xl border-2 border-cream-200 bg-cream-50 px-4 py-3.5 text-2xl font-bold text-ink-900 placeholder:text-ink-400/60 focus:border-emerald-500 focus:outline-none"
-          value={input.revenue ? input.revenue.toLocaleString('ja-JP') : ''}
-          onChange={(e) => setRevenue(num(e.target.value))}
-          placeholder="例: 6,000,000"
+          inputRef={revenueRef}
+          valueYen={input.revenue}
+          onChangeYen={setRevenue}
+          placeholder="例: 600"
+          className="mt-2"
+          inputClassName="tabular w-full rounded-2xl border-2 border-cream-200 bg-cream-50 px-4 py-3.5 pr-20 text-2xl font-bold text-ink-900 placeholder:text-ink-400/60 focus:border-emerald-500 focus:outline-none"
+          suffixClassName="text-lg font-bold text-ink-500"
         />
+        {hasResult && (
+          <p className="tabular mt-1.5 text-xs text-ink-400">
+            = {input.revenue.toLocaleString('ja-JP')}円
+          </p>
+        )}
         <div className="mt-3 flex flex-wrap gap-2">
           {REVENUE_PRESETS.map((preset) => (
             <button
