@@ -96,7 +96,11 @@ function Row({
 
   if (!detail) {
     return (
-      <div className="flex items-baseline justify-between gap-3 px-2 py-1.5">
+      <div
+        className={`flex items-baseline justify-between gap-3 px-2.5 py-1.5 ${
+          strong ? 'rounded-lg bg-cream-100/70' : ''
+        }`}
+      >
         <span className={labelClass}>
           {label}
           {hint ? (
@@ -443,15 +447,21 @@ export function ResultPanel({
         {/* 毎月のお金の3分解 */}
         <div className="mt-5 rounded-2xl border border-cream-200 p-4">
           <p className="text-sm font-bold text-ink-900">
-            毎月のお金、こう分かれます
+            毎月、自由に使えるのは？
           </p>
-          <p className="mt-0.5 text-xs text-ink-500">
-            毎月の利益(売上 − 経費 ÷ 12)の内訳です。
+          <p className="mt-0.5 text-xs leading-relaxed text-ink-500">
+            毎月の利益{' '}
+            <span className="tabular font-semibold text-ink-700">
+              {formatYen(
+                r.monthlyFixedCost + r.monthlyTaxReserve + r.monthlyTakeHome
+              )}
+            </span>{' '}
+            から、固定費と税をよけた残りが手取りです。
           </p>
-          <div className="mt-3 grid grid-cols-3 gap-2.5">
+          <div className="mt-3 grid grid-cols-3 items-stretch gap-2.5">
             <div className="rounded-2xl bg-cream-100 p-3">
               <p className="text-[11px] font-semibold text-ink-500">固定費</p>
-              <p className="tabular mt-0.5 whitespace-nowrap text-base font-bold tracking-tight text-ink-900">
+              <p className="tabular mt-0.5 whitespace-nowrap text-[15px] font-bold tracking-tight text-ink-900">
                 {formatYen(r.monthlyFixedCost)}
               </p>
               <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-ink-400">
@@ -463,7 +473,7 @@ export function ResultPanel({
               <p className="text-[11px] font-semibold text-amber-700">
                 税の月割り
               </p>
-              <p className="tabular mt-0.5 whitespace-nowrap text-base font-bold tracking-tight text-amber-800">
+              <p className="tabular mt-0.5 whitespace-nowrap text-[15px] font-bold tracking-tight text-amber-800">
                 {formatYen(r.monthlyTaxReserve)}
               </p>
               <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-amber-600/80">
@@ -473,15 +483,14 @@ export function ResultPanel({
                 <li>・消費税</li>
               </ul>
             </div>
-            <div className="rounded-2xl bg-emerald-50 p-3">
-              <p className="text-[11px] font-semibold text-emerald-700">
-                手取り
-              </p>
-              <p className="tabular mt-0.5 whitespace-nowrap text-base font-bold tracking-tight text-emerald-700">
+            <div className="rounded-2xl bg-emerald-600 p-3 text-white shadow-[0_6px_14px_rgba(5,150,105,0.25)]">
+              <p className="text-[11px] font-bold text-emerald-50">手取り</p>
+              <p className="tabular mt-0.5 whitespace-nowrap text-[15px] font-extrabold tracking-tight text-white">
                 {formatYen(r.monthlyTakeHome)}
               </p>
-              <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-emerald-600/80">
+              <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-emerald-50/85">
                 <li>・自由に使える</li>
+                <li>・生活費・貯蓄に</li>
               </ul>
             </div>
           </div>
@@ -567,7 +576,10 @@ export function ResultPanel({
 
         {/* 事業所得の計算 */}
         <div className="mt-3">
-          <h3 className="mb-1 text-sm font-semibold text-ink-900">
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-ink-900">
+            <span className="grid h-6 w-6 place-items-center rounded-lg bg-cream-200 text-sm">
+              🧮
+            </span>
             事業所得の計算
           </h3>
           <div className="divide-y divide-cream-200">
@@ -620,7 +632,12 @@ export function ResultPanel({
 
         {/* 税金 */}
         <div className="mt-5">
-          <h3 className="mb-1 text-sm font-semibold text-ink-900">税金</h3>
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-ink-900">
+            <span className="grid h-6 w-6 place-items-center rounded-lg bg-amber-100 text-sm">
+              🏛️
+            </span>
+            税金
+          </h3>
           <div className="divide-y divide-cream-200">
             <Row
               label="所得税"
@@ -790,7 +807,12 @@ export function ResultPanel({
 
         {/* 社会保険 */}
         <div className="mt-4">
-          <h3 className="mb-1 text-sm font-semibold text-ink-900">社会保険</h3>
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-ink-900">
+            <span className="grid h-6 w-6 place-items-center rounded-lg bg-emerald-100 text-sm">
+              🛡️
+            </span>
+            社会保険
+          </h3>
           <div className="divide-y divide-cream-200">
             <Row
               label="国民健康保険"
