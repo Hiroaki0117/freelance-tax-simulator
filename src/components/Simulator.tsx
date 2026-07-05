@@ -130,7 +130,7 @@ export function Simulator() {
             </div>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex items-baseline justify-between gap-3 border-b border-cream-200 pb-2">
-                <dt className="text-ink-500">経費</dt>
+                <dt className="font-medium text-ink-900">経費</dt>
                 <dd className="text-right font-bold text-ink-900">
                   {expensesTouched
                     ? `${(input.expenses / 10000).toLocaleString('ja-JP')}万円`
@@ -138,19 +138,19 @@ export function Simulator() {
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-3 border-b border-cream-200 pb-2">
-                <dt className="text-ink-500">申告</dt>
+                <dt className="font-medium text-ink-900">申告</dt>
                 <dd className="text-right font-bold text-ink-900">
                   {FILING_LABELS[input.filingType]}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-3 border-b border-cream-200 pb-2">
-                <dt className="text-ink-500">消費税</dt>
+                <dt className="font-medium text-ink-900">消費税</dt>
                 <dd className="text-right font-bold text-ink-900">
                   {CONSUMPTION_LABELS[input.consumptionTax]}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-ink-500">保険</dt>
+                <dt className="font-medium text-ink-900">保険</dt>
                 <dd className="text-right font-bold text-ink-900">
                   {INSURANCE_LABELS[input.insurance]}
                 </dd>
