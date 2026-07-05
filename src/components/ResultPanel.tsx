@@ -406,28 +406,40 @@ export function ResultPanel({
             毎月の利益(売上 − 経費 ÷ 12)の内訳です。
           </p>
           <div className="mt-3 grid grid-cols-3 gap-2.5">
-            <div className="rounded-2xl bg-cream-100 p-3 text-center">
-              <p className="text-xs font-semibold text-ink-600">固定費</p>
-              <p className="text-[10px] text-ink-400">国保・年金</p>
-              <p className="tabular mt-1 whitespace-nowrap text-[15px] font-bold tracking-tight text-ink-900">
+            <div className="rounded-2xl bg-cream-100 p-3">
+              <p className="text-[11px] font-semibold text-ink-500">固定費</p>
+              <p className="tabular mt-0.5 whitespace-nowrap text-base font-bold tracking-tight text-ink-900">
                 {formatYen(r.monthlyFixedCost)}
               </p>
+              <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-ink-400">
+                <li>・国民健康保険</li>
+                <li>・国民年金</li>
+              </ul>
             </div>
-            <div className="rounded-2xl bg-amber-50 p-3 text-center">
-              <p className="text-xs font-semibold text-amber-700">税の月割り</p>
-              <p className="text-[10px] text-amber-600/70">
-                所得税・住民税・事業税・消費税
+            <div className="rounded-2xl bg-amber-50 p-3">
+              <p className="text-[11px] font-semibold text-amber-700">
+                税の月割り
               </p>
-              <p className="tabular mt-1 whitespace-nowrap text-[15px] font-bold tracking-tight text-amber-800">
+              <p className="tabular mt-0.5 whitespace-nowrap text-base font-bold tracking-tight text-amber-800">
                 {formatYen(r.monthlyTaxReserve)}
               </p>
+              <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-amber-600/80">
+                <li>・所得税</li>
+                <li>・住民税</li>
+                <li>・個人事業税</li>
+                <li>・消費税</li>
+              </ul>
             </div>
-            <div className="rounded-2xl bg-emerald-50 p-3 text-center">
-              <p className="text-xs font-semibold text-emerald-700">手取り</p>
-              <p className="text-[10px] text-emerald-600/70">自由に使える</p>
-              <p className="tabular mt-1 whitespace-nowrap text-[15px] font-bold tracking-tight text-emerald-700">
+            <div className="rounded-2xl bg-emerald-50 p-3">
+              <p className="text-[11px] font-semibold text-emerald-700">
+                手取り
+              </p>
+              <p className="tabular mt-0.5 whitespace-nowrap text-base font-bold tracking-tight text-emerald-700">
                 {formatYen(r.monthlyTakeHome)}
               </p>
+              <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-emerald-600/80">
+                <li>・自由に使える</li>
+              </ul>
             </div>
           </div>
 
