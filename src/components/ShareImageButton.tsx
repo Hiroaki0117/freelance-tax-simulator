@@ -200,20 +200,14 @@ export function ShareImageButton({ result }: { result: TaxResult }) {
       <p className="text-sm font-bold text-emerald-900">
         この結果、画像でシェアできます
       </p>
-      <p className="mt-0.5 text-xs text-emerald-700/80">
-        数字入りのカード画像を作って投稿できます。
-      </p>
       <button
         type="button"
         onClick={handle}
         disabled={!file}
         className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-[0_6px_14px_rgba(5,150,105,0.28)] transition-colors hover:bg-emerald-700 disabled:opacity-60"
       >
-        {file ? '📸 結果を画像で保存・シェア' : '画像を準備中…'}
+        {file ? '📸 結果をシェアする' : '画像を準備中…'}
       </button>
-      <p className="mt-2 text-[11px] text-emerald-700/70">
-        スマホはそのまま共有・PCは画像を保存してXに添付できます。
-      </p>
     </div>
   );
 }
