@@ -143,42 +143,63 @@ function Row({
   );
 }
 
-/** 売上がどう分かれるかの積み上げバー */
+/** 売上がどう分かれるかの積み上げバー(各区分をバー内＋真下ラベルで一目に) */
 function BreakdownBar({
   segments,
 }: {
-  segments: { label: string; value: number; color: string }[];
+  segments: {
+    label: string;
+    value: number;
+    color: string;
+    text: string; // バー内・ドットの文字色に対する見やすさ用のテキスト色
+  }[];
 }) {
   const total = segments.reduce((a, s) => a + Math.max(0, s.value), 0);
   if (total <= 0) return null;
+  const pct = (v: number) => (Math.max(0, v) / total) * 100;
   return (
     <div>
-      <div className="flex h-9 overflow-hidden rounded-xl">
-        {segments.map((s) => (
-          <div
-            key={s.label}
-            className={`${s.color} transition-[width] duration-500`}
-            style={{ width: `${(Math.max(0, s.value) / total) * 100}%` }}
-            title={`${s.label} ${formatYen(s.value)}`}
-          />
-        ))}
+      {/* バー本体:幅のある区分は中に「名前＋割合」を表示 */}
+      <div className="flex h-12 overflow-hidden rounded-xl">
+        {segments.map((s) => {
+          const p = pct(s.value);
+          return (
+            <div
+              key={s.label}
+              className={`${s.color} flex flex-col items-center justify-center overflow-hidden leading-none transition-[width] duration-500`}
+              style={{ width: `${p}%` }}
+              title={`${s.label} ${formatYen(s.value)}`}
+            >
+              {p >= 12 && (
+                <>
+                  <span
+                    className={`truncate px-1 text-[11px] font-semibold ${s.text}`}
+                  >
+                    {s.label}
+                  </span>
+                  <span className={`text-[11px] font-bold ${s.text}`}>
+                    {Math.round(p)}%
+                  </span>
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
+      {/* バーの真下に、区分ごとの金額を等幅で(狭い区分も切れない) */}
+      <div className="mt-2.5 grid grid-cols-4 gap-1">
         {segments.map((s) => (
-          <div
-            key={s.label}
-            className="flex items-baseline justify-between gap-2"
-          >
-            <span className="flex items-center gap-1.5 text-ink-600">
+          <div key={s.label} className="text-center">
+            <div className="flex items-center justify-center gap-1 text-[11px] leading-tight text-ink-500">
               <span
-                className={`inline-block h-2.5 w-2.5 rounded ${s.color}`}
+                className={`inline-block h-2 w-2 shrink-0 rounded ${s.color}`}
                 aria-hidden
               />
-              {s.label}
-            </span>
-            <span className="tabular font-semibold text-ink-900">
+              <span className="truncate">{s.label}</span>
+            </div>
+            <div className="tabular whitespace-nowrap text-sm font-bold text-ink-900">
               {man(s.value)}万
-            </span>
+            </div>
           </div>
         ))}
       </div>
@@ -236,7 +257,7 @@ function TaxCalendar({ result }: { result: TaxResult }) {
 
   return (
     <div>
-      <div className="grid grid-cols-12 gap-1">
+      <div className="grid grid-cols-12 gap-1.5">
         {MONTH_ORDER.map((m) => {
           const d = lump[m];
           const isSel = m === selected;
@@ -249,9 +270,14 @@ function TaxCalendar({ result }: { result: TaxResult }) {
               aria-pressed={isSel}
               className="flex flex-col items-center gap-1"
             >
-              <div className="flex h-20 w-full items-end">
+              <div className="flex h-36 w-full flex-col items-center justify-end">
+                {isSel && d > 0 && (
+                  <span className="mb-1 whitespace-nowrap text-[10px] font-bold leading-none text-amber-700">
+                    {man(d)}万
+                  </span>
+                )}
                 <div
-                  className={`w-full rounded-t transition-[height] duration-500 ${
+                  className={`w-full rounded-t-md transition-[height] duration-500 ${
                     d <= 0
                       ? 'bg-cream-200'
                       : isSel
@@ -259,12 +285,12 @@ function TaxCalendar({ result }: { result: TaxResult }) {
                         : 'bg-amber-300 hover:bg-amber-400'
                   }`}
                   style={{
-                    height: d > 0 ? `${Math.max((d / max) * 100, 8)}%` : '4px',
+                    height: d > 0 ? `${Math.max((d / max) * 100, 8)}%` : '5px',
                   }}
                 />
               </div>
               <span
-                className={`text-[9px] ${isSel ? 'font-bold text-amber-700' : 'text-ink-400'}`}
+                className={`text-[11px] ${isSel ? 'font-bold text-amber-700' : 'text-ink-400'}`}
               >
                 {m + 1}
               </span>
@@ -375,14 +401,30 @@ export function ResultPanel({
           </p>
           <BreakdownBar
             segments={[
-              { label: '経費', value: r.input.expenses, color: 'bg-cream-300' },
-              { label: '税金', value: r.taxTotal, color: 'bg-amber-400' },
+              {
+                label: '経費',
+                value: r.input.expenses,
+                color: 'bg-cream-300',
+                text: 'text-ink-700',
+              },
+              {
+                label: '税金',
+                value: r.taxTotal,
+                color: 'bg-amber-400',
+                text: 'text-amber-900',
+              },
               {
                 label: '保険・年金',
                 value: r.socialInsuranceTotal,
                 color: 'bg-orange-400',
+                text: 'text-white',
               },
-              { label: '手取り', value: r.takeHome, color: 'bg-emerald-600' },
+              {
+                label: '手取り',
+                value: r.takeHome,
+                color: 'bg-emerald-600',
+                text: 'text-white',
+              },
             ]}
           />
           <p className="mt-2.5 text-xs leading-relaxed text-ink-500">
