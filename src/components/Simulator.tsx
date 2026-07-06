@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { calculateTax } from '@/lib/tax/calculator';
 import { DEFAULT_INPUT } from '@/lib/tax/defaults';
 import { TAX_YEAR } from '@/lib/tax/constants';
@@ -26,11 +26,22 @@ export function Simulator() {
   const [input, setInput] = useState<TaxInput>(INITIAL_INPUT);
   const [expensesTouched, setExpensesTouched] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [showResult, setShowResult] = useState(false);
   const revenueRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
   const result = useMemo(() => calculateTax(input), [input]);
-  const hasResult = input.revenue > 0;
+  const hasRevenue = input.revenue > 0;
+  const showingResult = showResult && hasRevenue;
+
+  // 「結果をみる」を押して結果が現れたら、そこまでスクロールする
+  useEffect(() => {
+    if (showingResult) {
+      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    // showResult が false→true に変わった初回だけ発火させたいので依存は showResult
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showResult]);
 
   function setRevenue(revenue: number) {
     setInput((prev) => ({
@@ -48,10 +59,16 @@ export function Simulator() {
   }
 
   function handleCta() {
-    if (hasResult) {
+    if (!hasRevenue) {
+      revenueRef.current?.focus();
+      return;
+    }
+    if (showResult) {
+      // すでに表示済みなら結果までスクロール
       resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
-      revenueRef.current?.focus();
+      // 初回は表示を有効化(スクロールは useEffect が担当)
+      setShowResult(true);
     }
   }
 
@@ -75,7 +92,7 @@ export function Simulator() {
           inputClassName="tabular w-full rounded-2xl border-2 border-cream-200 bg-cream-50 px-4 py-3.5 pr-20 text-2xl font-bold text-ink-900 placeholder:text-ink-400/60 focus:border-emerald-500 focus:outline-none"
           suffixClassName="text-lg font-bold text-ink-500"
         />
-        {hasResult && (
+        {hasRevenue && (
           <p className="tabular mt-1.5 text-xs text-ink-400">
             = {input.revenue.toLocaleString('ja-JP')}円
           </p>
@@ -95,55 +112,73 @@ export function Simulator() {
               {preset / 10000}万
             </button>
           ))}
-          <button
-            type="button"
-            onClick={() => setDetailsOpen((o) => !o)}
-            aria-expanded={detailsOpen}
-            className="rounded-full border-[1.5px] border-dashed border-cream-300 px-4 py-1.5 text-sm font-medium text-ink-500 transition-colors hover:border-emerald-400 hover:text-emerald-700"
-          >
-            詳細を入力する {detailsOpen ? '▴' : '▾'}
-          </button>
         </div>
 
-        {!detailsOpen && hasResult && (
-          <div className="mt-3 rounded-xl bg-cream-50 px-3.5 py-3 text-xs leading-relaxed text-ink-500">
-            <p className="font-bold text-ink-600">いまの計算の前提</p>
-            <ul className="mt-1.5 space-y-1">
-              <li className="flex gap-1.5">
-                <span className="text-emerald-600">・</span>
-                <span>
-                  経費:{' '}
+        {/* いまの計算の前提(右上に「詳細を入力」ボタン) */}
+        {!detailsOpen && (
+          <div className="mt-3 rounded-2xl bg-cream-50 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-bold text-ink-800">いまの計算の前提</p>
+              <button
+                type="button"
+                onClick={() => setDetailsOpen(true)}
+                aria-expanded={false}
+                className="shrink-0 rounded-full border-2 border-emerald-500 bg-white px-4 py-2 text-sm font-bold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50"
+              >
+                詳細を入力 ▾
+              </button>
+            </div>
+            <dl className="mt-3 space-y-2 text-sm">
+              <div className="flex items-baseline justify-between gap-3 border-b border-cream-200 pb-2">
+                <dt className="font-medium text-ink-900">経費</dt>
+                <dd className="text-right font-bold text-ink-900">
                   {expensesTouched
                     ? `${(input.expenses / 10000).toLocaleString('ja-JP')}万円`
                     : '売上の20%で仮置き'}
-                </span>
-              </li>
-              <li className="flex gap-1.5">
-                <span className="text-emerald-600">・</span>
-                <span>申告: {FILING_LABELS[input.filingType]}</span>
-              </li>
-              <li className="flex gap-1.5">
-                <span className="text-emerald-600">・</span>
-                <span>消費税: {CONSUMPTION_LABELS[input.consumptionTax]}</span>
-              </li>
-              <li className="flex gap-1.5">
-                <span className="text-emerald-600">・</span>
-                <span>保険: {INSURANCE_LABELS[input.insurance]}</span>
-              </li>
-            </ul>
-            <p className="mt-1.5 text-[11px] text-ink-400">
-              変えたいときは「詳細を入力する」から。
-            </p>
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3 border-b border-cream-200 pb-2">
+                <dt className="font-medium text-ink-900">申告</dt>
+                <dd className="text-right font-bold text-ink-900">
+                  {FILING_LABELS[input.filingType]}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3 border-b border-cream-200 pb-2">
+                <dt className="font-medium text-ink-900">消費税</dt>
+                <dd className="text-right font-bold text-ink-900">
+                  {CONSUMPTION_LABELS[input.consumptionTax]}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="font-medium text-ink-900">保険</dt>
+                <dd className="text-right font-bold text-ink-900">
+                  {INSURANCE_LABELS[input.insurance]}
+                </dd>
+              </div>
+            </dl>
           </div>
         )}
 
         {detailsOpen && (
-          <SimulatorForm
-            input={input}
-            onChange={handleFormChange}
-            furusatoLimit={result.furusatoNozeiLimit}
-            expensesAssumed={!expensesTouched && hasResult}
-          />
+          <div className="mt-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-bold text-ink-800">詳細を入力</p>
+              <button
+                type="button"
+                onClick={() => setDetailsOpen(false)}
+                aria-expanded={true}
+                className="shrink-0 rounded-full border-2 border-cream-300 bg-white px-4 py-2 text-sm font-bold text-ink-600 transition-colors hover:border-emerald-400 hover:text-emerald-700"
+              >
+                閉じる ▴
+              </button>
+            </div>
+            <SimulatorForm
+              input={input}
+              onChange={handleFormChange}
+              furusatoLimit={result.furusatoNozeiLimit}
+              expensesAssumed={!expensesTouched && hasRevenue}
+            />
+          </div>
         )}
 
         <button
@@ -151,18 +186,18 @@ export function Simulator() {
           onClick={handleCta}
           className="mt-5 w-full rounded-2xl bg-emerald-600 px-4 py-4 text-lg font-bold text-white shadow-[0_8px_18px_rgba(5,150,105,0.28)] transition-colors hover:bg-emerald-700"
         >
-          {hasResult ? '結果をみる' : 'ざっくり計算する'}
+          {showingResult ? '結果をみる' : 'ざっくり計算する'}
         </button>
       </div>
 
       <p className="mt-3.5 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-ink-400">
-        <span>✓ 登録なし</span>
-        <span>✓ 入力は保存されません</span>
-        <span>✓ {TAX_YEAR}年分対応</span>
+        <span>✓ 登録・ログインなし</span>
+        <span>✓ 入力内容は保存されません</span>
+        <span>✓ 令和7年({TAX_YEAR}年)分対応</span>
       </p>
 
-      {/* 結果(売上をいれると出る) */}
-      {hasResult && (
+      {/* 結果(「結果をみる」を押すと出る) */}
+      {showingResult && (
         <div ref={resultRef} className="rise-in mt-6 scroll-mt-4">
           <ResultPanel result={result} expensesAssumed={!expensesTouched} />
         </div>

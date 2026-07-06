@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
-const SITE_URL = 'https://freelance-tax-simulator.vercel.app';
+const SITE_URL = 'https://freelance-tedori.com';
 const SITE_NAME = 'フリーランスの手取りざっくりシミュレーター';
 const SITE_DESCRIPTION =
   '売上をいれるだけ。所得税・住民税・国保・年金・事業税・消費税をぜんぶ込みで、フリーランスの手取りをざっくり概算する無料ツール。';
