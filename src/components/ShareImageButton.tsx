@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import type { TaxResult } from '@/lib/tax/types';
 import { TAX_YEAR } from '@/lib/tax/constants';
 
-const SHARE_URL = 'https://freelance-tax-simulator.vercel.app';
+const SHARE_URL = 'https://freelance-tedori.com';
 const HANDLE = '@freelance_hiro';
 
 const C = {
@@ -85,7 +85,7 @@ function buildSvg(r: TaxResult): string {
     <g clip-path="url(#bar)">${bars}</g>
     ${legend}
 
-    <text x="108" y="958" font-size="30" fill="${C.ink400}">freelance-tax-simulator.vercel.app</text>
+    <text x="108" y="958" font-size="30" fill="${C.ink400}">freelance-tedori.com</text>
     <text x="972" y="958" font-size="34" font-weight="700" fill="${C.emerald700}" text-anchor="end">${HANDLE}</text>
   </svg>`;
 }
