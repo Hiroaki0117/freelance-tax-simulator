@@ -7,7 +7,7 @@ export default function Home() {
     <main className="mx-auto max-w-xl px-5 py-10 sm:py-14">
       <header className="mb-7">
         <p className="mb-3 inline-block rounded-full bg-emerald-600/10 px-3.5 py-1 text-xs font-semibold text-emerald-700">
-          フリーランス・個人事業主むけ / 無料・登録なし
+          フリーランスむけ
         </p>
         <h1 className="text-4xl font-extrabold leading-[1.3] tracking-tight sm:text-[2.6rem]">
           手取り、
