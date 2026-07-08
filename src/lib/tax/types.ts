@@ -41,12 +41,15 @@ export interface TaxInput {
   age40OrOver: boolean;
   /** ふるさと納税の年間寄附額(実額・円)。0なら未利用 */
   furusatoDonation: number;
+  /** iDeCoの掛金(月額・円)。0なら未加入。全額が小規模企業共済等掛金控除になる */
+  idecoMonthly: number;
 }
 
 /** 所得控除の内訳 */
 export interface DeductionBreakdown {
   basic: number; // 基礎控除
   socialInsurance: number; // 社会保険料控除(国保 + 国民年金)
+  ideco: number; // 小規模企業共済等掛金控除(iDeCoの掛金・年額)
   spouse: number; // 配偶者控除
   dependents: number; // 扶養控除
   total: number; // 合計

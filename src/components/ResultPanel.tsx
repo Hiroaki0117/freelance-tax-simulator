@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { TaxResult } from '@/lib/tax/types';
+import { calculateTax } from '@/lib/tax/calculator';
 import { CONSUMPTION_LABELS, formatPercent, formatYen } from '@/lib/tax/format';
 import {
+  IDECO_MONTHLY_MAX,
+  IDECO_MONTHLY_MIN,
   INCOME_TAX_BRACKETS,
   NATIONAL_PENSION_MONTHLY,
 } from '@/lib/tax/constants';
@@ -25,6 +28,21 @@ function man(value: number): string {
   });
 }
 
+/** 万円表記(小数1桁)。狭いカードで円表記が収まらないところ用 */
+function manShort(yen: number): string {
+  return `${(yen / 10000).toLocaleString('ja-JP', { maximumFractionDigits: 1 })}万`;
+}
+
+/** 「50,000」のようなカンマ入り数字テキストを数値(円)に */
+function numFromText(value: string): number {
+  const n = Number(value.replace(/[^0-9]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function withCommas(value: number): string {
+  return value ? value.toLocaleString('ja-JP') : '';
+}
+
 function Detail({ rows }: { rows: DetailRow[] }) {
   return (
     <div className="mb-1.5 space-y-1 rounded-xl bg-cream-100 px-3 py-2 text-xs text-ink-600">
@@ -32,7 +50,7 @@ function Detail({ rows }: { rows: DetailRow[] }) {
         r.note ? (
           <div
             key={i}
-            className="rounded-lg bg-white/80 px-2 py-1.5 text-[11px] leading-relaxed text-ink-600"
+            className="rounded-lg bg-white/80 px-2 py-1.5 text-xs leading-relaxed text-ink-600"
           >
             💡 {r.label}
           </div>
@@ -409,9 +427,9 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
             今年
           </span>
           <span className="text-sm font-bold text-emerald-800">稼ぐ年</span>
-          <span className="text-[11px] text-ink-500">働いて所得が決まる年</span>
+          <span className="text-xs text-ink-500">働いて所得が決まる年</span>
         </div>
-        <p className="mt-2.5 text-[13px] font-semibold leading-relaxed text-emerald-800">
+        <p className="mt-2.5 text-[13px] font-semibold leading-relaxed text-emerald-950">
           働いて得た所得で、翌年の税額が決まる年。ふるさと納税をするなら、この年のうちに。
         </p>
       </div>
@@ -453,7 +471,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
             翌年3月〜翌々1月
           </span>
           <span className="text-sm font-bold text-amber-800">払う年</span>
-          <span className="text-[11px] text-ink-500">今年ぶんの税・保険を精算</span>
+          <span className="text-xs text-ink-500">今年ぶんの税・保険を精算</span>
         </div>
 
         {/* 月バー(タップで内訳) */}
@@ -472,7 +490,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
                 className="flex flex-col items-center gap-1"
               >
                 <div className="flex h-24 w-full flex-col items-center justify-end gap-0.5">
-                  <span className="h-2.5 whitespace-nowrap text-[9px] font-bold leading-none text-amber-700">
+                  <span className="h-3 whitespace-nowrap text-[10px] font-bold leading-none text-amber-700">
                     {isSel && l > 0 ? `${man(l)}万` : ''}
                   </span>
                   <div
@@ -495,7 +513,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
                 >
                   {m.lab}
                 </span>
-                <span className="text-[8px] leading-none text-ink-400">
+                <span className="text-[9px] leading-none text-ink-400">
                   {m.yr ?? ''}
                 </span>
               </button>
@@ -531,7 +549,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
                 <span className="tabular">約 {formatYen(selTotal)}</span>
               </div>
             ) : (
-              <p className="text-[11px] text-ink-400">大きな支払いはなし。</p>
+              <p className="text-xs text-ink-400">大きな支払いはなし。</p>
             )}
           </div>
           {sel.tag && (
@@ -539,13 +557,13 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
               {sel.tag}
             </span>
           )}
-          <p className="mt-2 rounded-lg bg-white/70 px-2.5 py-1.5 text-[11px] leading-relaxed text-ink-600">
+          <p className="mt-2 rounded-lg bg-white/70 px-2.5 py-1.5 text-xs leading-relaxed text-ink-600">
             💡 {sel.note}
           </p>
         </div>
 
         {/* 凡例 */}
-        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-ink-500">
+        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-500">
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-2.5 w-2.5 rounded bg-amber-500" />
             まとめて来る税
@@ -565,14 +583,24 @@ export function ResultPanel({
   expensesAssumed,
   onRevenueChange,
   onExpensesChange,
+  onIdecoChange,
+  onFurusatoChange,
 }: {
   result: TaxResult;
   expensesAssumed?: boolean;
   onRevenueChange?: (yen: number) => void;
   onExpensesChange?: (yen: number) => void;
+  onIdecoChange?: (monthlyYen: number) => void;
+  onFurusatoChange?: (yen: number) => void;
 }) {
   const r = result;
   const editable = Boolean(onRevenueChange && onExpensesChange);
+  const ideco = r.input.idecoMonthly;
+  // iDeCoの効き目 = 「掛金0円の自分」との差分。パネル表示用にだけ再計算する
+  const idecoBase = useMemo(
+    () => (ideco > 0 ? calculateTax({ ...r.input, idecoMonthly: 0 }) : null),
+    [r.input, ideco]
+  );
   const b = r.breakdown;
   const f = r.furusato;
   const paysPension = r.input.insurance !== 'dependent';
@@ -598,14 +626,14 @@ export function ResultPanel({
         {/* 月あたり・残る割合(自分ごとに響く2つ) */}
         <div className="mt-5 grid grid-cols-2 gap-2.5">
           <div className="rounded-2xl bg-white/15 px-3.5 py-2.5">
-            <p className="text-[11px] text-emerald-50/90">月あたりの手取り</p>
+            <p className="text-xs text-emerald-50/90">月あたりの手取り</p>
             <p className="tabular mt-0.5 text-xl font-bold leading-none">
               約{man(r.monthlyTakeHome)}
               <span className="ml-0.5 text-xs font-semibold">万円</span>
             </p>
           </div>
           <div className="rounded-2xl bg-white/15 px-3.5 py-2.5">
-            <p className="text-[11px] text-emerald-50/90">売上のうち残る割合</p>
+            <p className="text-xs text-emerald-50/90">売上のうち残る割合</p>
             <p className="tabular mt-0.5 text-xl font-bold leading-none">
               {formatPercent(takeHomeRate, 0)}
             </p>
@@ -622,7 +650,7 @@ export function ResultPanel({
               <p className="text-sm font-bold text-ink-900">
                 数字を動かして、ためしてみる
               </p>
-              <p className="text-[10px] text-ink-400">変えた瞬間に反映</p>
+              <p className="text-[11px] text-ink-400">変えた瞬間に反映</p>
             </div>
             <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2.5">
               <InlineField
@@ -639,8 +667,8 @@ export function ResultPanel({
               />
             </div>
             {expensesAssumed && (
-              <p className="mt-2 text-[11px] leading-relaxed text-ink-500">
-                経費は売上の20%で仮置き中。売上を動かすと経費もいっしょに動きます(経費を直接触ると固定されます)。
+              <p className="mt-2 text-xs leading-relaxed text-ink-500">
+                経費は売上の20%で仮置き中。直接入力すると固定されます。
               </p>
             )}
           </div>
@@ -712,23 +740,23 @@ export function ResultPanel({
             </span>{' '}
             から、固定費と税をよけた残りが手取りです。
           </p>
-          <div className="mt-3 grid grid-cols-3 items-stretch gap-2.5">
-            <div className="rounded-2xl bg-cream-100 p-3">
+          <div className="mt-3 grid grid-cols-3 items-stretch gap-1.5">
+            <div className="rounded-2xl bg-cream-100 px-2.5 py-3">
               <p className="text-[11px] font-semibold text-ink-500">固定費</p>
-              <p className="tabular mt-0.5 whitespace-nowrap text-[15px] font-bold tracking-tight text-ink-900">
-                {formatYen(r.monthlyFixedCost)}
+              <p className="tabular mt-0.5 whitespace-nowrap text-base font-bold tracking-tight text-ink-900">
+                {manShort(r.monthlyFixedCost)}
               </p>
               <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-ink-400">
-                <li>・国民健康保険</li>
+                <li>・国保</li>
                 <li>・国民年金</li>
               </ul>
             </div>
-            <div className="rounded-2xl bg-amber-50 p-3">
+            <div className="rounded-2xl bg-amber-50 px-2.5 py-3">
               <p className="text-[11px] font-semibold text-amber-700">
                 税の月割り
               </p>
-              <p className="tabular mt-0.5 whitespace-nowrap text-[15px] font-bold tracking-tight text-amber-800">
-                {formatYen(r.monthlyTaxReserve)}
+              <p className="tabular mt-0.5 whitespace-nowrap text-base font-bold tracking-tight text-amber-800">
+                {manShort(r.monthlyTaxReserve)}
               </p>
               <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-amber-600/80">
                 <li>・所得税</li>
@@ -737,14 +765,14 @@ export function ResultPanel({
                 <li>・消費税</li>
               </ul>
             </div>
-            <div className="rounded-2xl bg-emerald-600 p-3 text-white shadow-[0_6px_14px_rgba(5,150,105,0.25)]">
+            <div className="rounded-2xl bg-emerald-600 px-2.5 py-3 text-white shadow-[0_6px_14px_rgba(5,150,105,0.25)]">
               <p className="text-[11px] font-bold text-emerald-50">手取り</p>
-              <p className="tabular mt-0.5 whitespace-nowrap text-[15px] font-extrabold tracking-tight text-white">
-                {formatYen(r.monthlyTakeHome)}
+              <p className="tabular mt-0.5 whitespace-nowrap text-base font-extrabold tracking-tight text-white">
+                {manShort(r.monthlyTakeHome)}
               </p>
               <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-emerald-50/85">
-                <li>・自由に使える</li>
-                <li>・生活費・貯蓄に</li>
+                <li>・生活費に</li>
+                <li>・貯蓄に</li>
               </ul>
             </div>
           </div>
@@ -757,7 +785,7 @@ export function ResultPanel({
             <p className="text-sm font-bold text-ink-900">
               税金・保険の支払いカレンダー
             </p>
-            <p className="text-[10px] text-ink-400">月をタップで内訳</p>
+            <p className="text-[11px] text-ink-400">月をタップで内訳</p>
           </div>
           <p className="mb-1 mt-0.5 text-xs leading-relaxed text-ink-500">
             今年かせいだ分の税・保険は、精算(支払い)が翌年から始まります。年金だけは今年から毎月。
@@ -775,10 +803,54 @@ export function ResultPanel({
               {formatYen(r.furusatoNozeiLimit)}
             </span>
           </div>
-          <p className="mt-1 text-[11px] leading-relaxed text-orange-700/80">
-            実質負担2,000円で済む寄附のおおよその上限(住民税所得割 × 20% ÷ (90%
-            − 所得税率×1.021) + 2,000円)。あくまで目安です。
+          <p className="mt-1 text-xs leading-relaxed text-orange-700/90">
+            実質負担2,000円で済む寄附の、おおよその上限です(あくまで目安)。
           </p>
+
+          {/* 寄附額をその場で入れて効果を見る */}
+          {onFurusatoChange && (
+            <div className="mt-3 border-t border-orange-200 pt-3">
+              <label
+                className="text-xs font-semibold text-orange-800"
+                htmlFor="furusatoInline"
+              >
+                寄附額を入れて、効果をみる(年間)
+              </label>
+              <div className="mt-1 flex items-center gap-2">
+                <input
+                  id="furusatoInline"
+                  inputMode="numeric"
+                  className="tabular w-full rounded-xl border-[1.5px] border-orange-200 bg-white px-3 py-2 text-sm font-bold text-ink-900 focus:border-orange-400 focus:outline-none"
+                  value={withCommas(f.donation)}
+                  onChange={(e) => onFurusatoChange(numFromText(e.target.value))}
+                  placeholder="0"
+                />
+                <span className="shrink-0 text-xs font-semibold text-orange-800">
+                  円
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {r.furusatoNozeiLimit > 0 && (
+                  <button
+                    type="button"
+                    className="rounded-full border border-orange-300 bg-white px-3 py-1 text-xs font-semibold text-orange-700 transition-colors hover:bg-orange-100"
+                    onClick={() => onFurusatoChange(r.furusatoNozeiLimit)}
+                  >
+                    上限額を入れる({formatYen(r.furusatoNozeiLimit)})
+                  </button>
+                )}
+                {f.donation > 0 && (
+                  <button
+                    type="button"
+                    className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs text-orange-700/80 transition-colors hover:bg-orange-100"
+                    onClick={() => onFurusatoChange(0)}
+                  >
+                    クリア
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {f.donation > 0 && (
             <div className="mt-3 space-y-1.5 border-t border-orange-200 pt-3">
@@ -800,28 +872,109 @@ export function ResultPanel({
                 <span className="tabular">{formatYen(f.outOfPocket)}</span>
               </div>
               {f.overLimit ? (
-                <p className="rounded-lg bg-red-50 px-2 py-1.5 text-[11px] leading-relaxed text-red-700">
+                <p className="rounded-lg bg-red-50 px-2 py-1.5 text-xs leading-relaxed text-red-700">
                   ⚠️ 上限(約{formatYen(r.furusatoNozeiLimit)}
-                  )を超えています。超えた分は控除しきれず、実質負担が2,000円より増えます(
-                  {formatYen(f.outOfPocket)}
-                  )。上限内に抑えると自己負担2,000円で済みます。
+                  )を超えています。超えた分は控除されず、実質負担は
+                  {formatYen(f.outOfPocket)}に増えます。
                 </p>
               ) : (
-                <p className="text-[11px] leading-relaxed text-orange-700/80">
-                  上限内なので実質2,000円の負担で寄附できます(差額の
+                <p className="text-xs leading-relaxed text-orange-700/90">
+                  上限内なので実質負担は2,000円。差額の
                   {formatYen(f.totalBenefit)}
-                  は税が減って戻ります)。手取りへの影響もこの自己負担分だけで、別途
-                  返礼品がもらえます。
+                  は税が減って戻り、返礼品は別途もらえます。
                 </p>
               )}
             </div>
           )}
         </div>
 
+        {/* iDeCo(掛金スライダーで節税の効き目をその場で見る) */}
+        {onIdecoChange && (
+          <div className="mt-4 rounded-2xl bg-sky-50 px-4 py-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-bold text-sky-900">
+                🌱 iDeCoをやったら、どう変わる?
+              </span>
+              <span className="tabular shrink-0 whitespace-nowrap text-base font-semibold text-sky-900">
+                月{formatYen(ideco)}
+              </span>
+            </div>
+            {/* 実際の加入は月5,000円から。最初の1目盛り(4,000)を「なし」に
+                割り当て、なし ↔ 5,000円 が1ステップで行き来できるようにする */}
+            <input
+              type="range"
+              min={IDECO_MONTHLY_MIN - 1000}
+              max={IDECO_MONTHLY_MAX}
+              step={1000}
+              value={ideco === 0 ? IDECO_MONTHLY_MIN - 1000 : ideco}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                onIdecoChange(v < IDECO_MONTHLY_MIN ? 0 : v);
+              }}
+              aria-label="iDeCoの掛金(月額)"
+              className="mt-3 h-2 w-full cursor-pointer accent-sky-700"
+            />
+            <div className="flex justify-between text-[11px] text-sky-800/70">
+              <span>なし</span>
+              <span>
+                上限 月{(IDECO_MONTHLY_MAX / 10000).toLocaleString('ja-JP')}
+                万円
+              </span>
+            </div>
+
+            {ideco > 0 && idecoBase && (
+              <div className="mt-3 space-y-1.5 border-t border-sky-200 pt-3">
+                <div className="flex items-baseline justify-between gap-2 text-sm text-sky-900">
+                  <span>掛金(年間)</span>
+                  <span className="tabular">{formatYen(ideco * 12)}</span>
+                </div>
+                <div className="flex items-baseline justify-between gap-2 text-xs text-sky-800/90">
+                  <span>
+                    税の軽減(所得税{' '}
+                    {formatYen(idecoBase.incomeTax - r.incomeTax)} + 住民税{' '}
+                    {formatYen(idecoBase.residentTax - r.residentTax)})
+                  </span>
+                  <span className="tabular shrink-0">
+                    − {formatYen(idecoBase.taxTotal - r.taxTotal)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between gap-2 rounded-lg bg-sky-100 px-2 py-1.5 text-sm font-semibold text-sky-900">
+                  <span>手取りへの効果(年)</span>
+                  <span className="tabular">
+                    {r.takeHome >= idecoBase.takeHome ? '+' : '−'}
+                    {formatYen(Math.abs(r.takeHome - idecoBase.takeHome))}
+                  </span>
+                </div>
+                {idecoBase.taxTotal - r.taxTotal <= 0 ? (
+                  <p className="rounded-lg bg-white/70 px-2 py-1.5 text-xs leading-relaxed text-sky-800/90">
+                    💡 いまの条件では税金がほぼ0円のため、節税効果は出ません。
+                  </p>
+                ) : (
+                  <p className="text-xs leading-relaxed text-sky-800/90">
+                    掛金は消える支出ではなく、60歳まで引き出せない自分の老後資産です。
+                  </p>
+                )}
+                <ul className="space-y-0.5 text-xs leading-relaxed text-sky-800/80">
+                  <li>・国保は下がりません</li>
+                  {r.furusatoNozeiLimit !== idecoBase.furusatoNozeiLimit && (
+                    <li>
+                      ・ふるさと納税の上限も
+                      {formatYen(
+                        idecoBase.furusatoNozeiLimit - r.furusatoNozeiLimit
+                      )}
+                      下がります(上のパネルは反映済み)
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ▼ ここから詳しい内訳 */}
         <div className="mt-6 flex items-center justify-between border-t border-cream-200 pt-4">
           <p className="text-xs font-semibold text-ink-400">詳しい内訳</p>
-          <span className="flex items-center gap-1 text-[11px] text-ink-400">
+          <span className="flex items-center gap-1 text-xs text-ink-400">
             <span className="grid h-4 w-4 place-items-center rounded-full bg-emerald-100 text-[9px] text-emerald-700">
               ▼
             </span>
@@ -851,7 +1004,7 @@ export function ResultPanel({
             />
             <Row
               label="所得控除の合計"
-              hint="(基礎・社会保険・配偶者・扶養)"
+              hint={`(基礎・社会保険・配偶者・扶養${r.incomeTaxDeductions.ideco > 0 ? '・iDeCo' : ''})`}
               value={`− ${formatYen(r.incomeTaxDeductions.total)}`}
               detail={[
                 {
@@ -867,6 +1020,14 @@ export function ResultPanel({
                   label: '社会保険料控除',
                   value: formatYen(r.incomeTaxDeductions.socialInsurance),
                 },
+                ...(r.incomeTaxDeductions.ideco > 0
+                  ? [
+                      {
+                        label: '小規模企業共済等掛金控除(iDeCo)',
+                        value: formatYen(r.incomeTaxDeductions.ideco),
+                      },
+                    ]
+                  : []),
                 {
                   label: '配偶者控除',
                   value: formatYen(r.incomeTaxDeductions.spouse),
@@ -957,6 +1118,14 @@ export function ResultPanel({
                   label: '− 社会保険料控除',
                   value: `− ${formatYen(r.residentTaxDeductions.socialInsurance)}`,
                 },
+                ...(r.residentTaxDeductions.ideco > 0
+                  ? [
+                      {
+                        label: '− iDeCo(小規模企業共済等掛金控除)',
+                        value: `− ${formatYen(r.residentTaxDeductions.ideco)}`,
+                      },
+                    ]
+                  : []),
                 ...(r.residentTaxDeductions.spouse > 0
                   ? [
                       {
