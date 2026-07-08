@@ -28,6 +28,11 @@ function man(value: number): string {
   });
 }
 
+/** 万円表記(小数1桁)。狭いカードで円表記が収まらないところ用 */
+function manShort(yen: number): string {
+  return `${(yen / 10000).toLocaleString('ja-JP', { maximumFractionDigits: 1 })}万`;
+}
+
 /** 「50,000」のようなカンマ入り数字テキストを数値(円)に */
 function numFromText(value: string): number {
   const n = Number(value.replace(/[^0-9]/g, ''));
@@ -45,7 +50,7 @@ function Detail({ rows }: { rows: DetailRow[] }) {
         r.note ? (
           <div
             key={i}
-            className="rounded-lg bg-white/80 px-2 py-1.5 text-[11px] leading-relaxed text-ink-600"
+            className="rounded-lg bg-white/80 px-2 py-1.5 text-xs leading-relaxed text-ink-600"
           >
             💡 {r.label}
           </div>
@@ -422,7 +427,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
             今年
           </span>
           <span className="text-sm font-bold text-emerald-800">稼ぐ年</span>
-          <span className="text-[11px] text-ink-500">働いて所得が決まる年</span>
+          <span className="text-xs text-ink-500">働いて所得が決まる年</span>
         </div>
         <p className="mt-2.5 text-[13px] font-semibold leading-relaxed text-emerald-950">
           働いて得た所得で、翌年の税額が決まる年。ふるさと納税をするなら、この年のうちに。
@@ -466,7 +471,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
             翌年3月〜翌々1月
           </span>
           <span className="text-sm font-bold text-amber-800">払う年</span>
-          <span className="text-[11px] text-ink-500">今年ぶんの税・保険を精算</span>
+          <span className="text-xs text-ink-500">今年ぶんの税・保険を精算</span>
         </div>
 
         {/* 月バー(タップで内訳) */}
@@ -485,7 +490,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
                 className="flex flex-col items-center gap-1"
               >
                 <div className="flex h-24 w-full flex-col items-center justify-end gap-0.5">
-                  <span className="h-2.5 whitespace-nowrap text-[9px] font-bold leading-none text-amber-700">
+                  <span className="h-3 whitespace-nowrap text-[10px] font-bold leading-none text-amber-700">
                     {isSel && l > 0 ? `${man(l)}万` : ''}
                   </span>
                   <div
@@ -508,7 +513,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
                 >
                   {m.lab}
                 </span>
-                <span className="text-[8px] leading-none text-ink-400">
+                <span className="text-[9px] leading-none text-ink-400">
                   {m.yr ?? ''}
                 </span>
               </button>
@@ -544,7 +549,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
                 <span className="tabular">約 {formatYen(selTotal)}</span>
               </div>
             ) : (
-              <p className="text-[11px] text-ink-400">大きな支払いはなし。</p>
+              <p className="text-xs text-ink-400">大きな支払いはなし。</p>
             )}
           </div>
           {sel.tag && (
@@ -552,13 +557,13 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
               {sel.tag}
             </span>
           )}
-          <p className="mt-2 rounded-lg bg-white/70 px-2.5 py-1.5 text-[11px] leading-relaxed text-ink-600">
+          <p className="mt-2 rounded-lg bg-white/70 px-2.5 py-1.5 text-xs leading-relaxed text-ink-600">
             💡 {sel.note}
           </p>
         </div>
 
         {/* 凡例 */}
-        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-ink-500">
+        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-500">
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-2.5 w-2.5 rounded bg-amber-500" />
             まとめて来る税
@@ -621,14 +626,14 @@ export function ResultPanel({
         {/* 月あたり・残る割合(自分ごとに響く2つ) */}
         <div className="mt-5 grid grid-cols-2 gap-2.5">
           <div className="rounded-2xl bg-white/15 px-3.5 py-2.5">
-            <p className="text-[11px] text-emerald-50/90">月あたりの手取り</p>
+            <p className="text-xs text-emerald-50/90">月あたりの手取り</p>
             <p className="tabular mt-0.5 text-xl font-bold leading-none">
               約{man(r.monthlyTakeHome)}
               <span className="ml-0.5 text-xs font-semibold">万円</span>
             </p>
           </div>
           <div className="rounded-2xl bg-white/15 px-3.5 py-2.5">
-            <p className="text-[11px] text-emerald-50/90">売上のうち残る割合</p>
+            <p className="text-xs text-emerald-50/90">売上のうち残る割合</p>
             <p className="tabular mt-0.5 text-xl font-bold leading-none">
               {formatPercent(takeHomeRate, 0)}
             </p>
@@ -645,7 +650,7 @@ export function ResultPanel({
               <p className="text-sm font-bold text-ink-900">
                 数字を動かして、ためしてみる
               </p>
-              <p className="text-[10px] text-ink-400">変えた瞬間に反映</p>
+              <p className="text-[11px] text-ink-400">変えた瞬間に反映</p>
             </div>
             <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2.5">
               <InlineField
@@ -662,8 +667,8 @@ export function ResultPanel({
               />
             </div>
             {expensesAssumed && (
-              <p className="mt-2 text-[11px] leading-relaxed text-ink-500">
-                経費は売上の20%で仮置き中。売上を動かすと経費もいっしょに動きます(経費を直接触ると固定されます)。
+              <p className="mt-2 text-xs leading-relaxed text-ink-500">
+                経費は売上の20%で仮置き中。直接入力すると固定されます。
               </p>
             )}
           </div>
@@ -735,23 +740,23 @@ export function ResultPanel({
             </span>{' '}
             から、固定費と税をよけた残りが手取りです。
           </p>
-          <div className="mt-3 grid grid-cols-3 items-stretch gap-2.5">
-            <div className="rounded-2xl bg-cream-100 p-3">
+          <div className="mt-3 grid grid-cols-3 items-stretch gap-1.5">
+            <div className="rounded-2xl bg-cream-100 px-2.5 py-3">
               <p className="text-[11px] font-semibold text-ink-500">固定費</p>
-              <p className="tabular mt-0.5 whitespace-nowrap text-[15px] font-bold tracking-tight text-ink-900">
-                {formatYen(r.monthlyFixedCost)}
+              <p className="tabular mt-0.5 whitespace-nowrap text-base font-bold tracking-tight text-ink-900">
+                {manShort(r.monthlyFixedCost)}
               </p>
               <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-ink-400">
-                <li>・国民健康保険</li>
+                <li>・国保</li>
                 <li>・国民年金</li>
               </ul>
             </div>
-            <div className="rounded-2xl bg-amber-50 p-3">
+            <div className="rounded-2xl bg-amber-50 px-2.5 py-3">
               <p className="text-[11px] font-semibold text-amber-700">
                 税の月割り
               </p>
-              <p className="tabular mt-0.5 whitespace-nowrap text-[15px] font-bold tracking-tight text-amber-800">
-                {formatYen(r.monthlyTaxReserve)}
+              <p className="tabular mt-0.5 whitespace-nowrap text-base font-bold tracking-tight text-amber-800">
+                {manShort(r.monthlyTaxReserve)}
               </p>
               <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-amber-600/80">
                 <li>・所得税</li>
@@ -760,14 +765,14 @@ export function ResultPanel({
                 <li>・消費税</li>
               </ul>
             </div>
-            <div className="rounded-2xl bg-emerald-600 p-3 text-white shadow-[0_6px_14px_rgba(5,150,105,0.25)]">
+            <div className="rounded-2xl bg-emerald-600 px-2.5 py-3 text-white shadow-[0_6px_14px_rgba(5,150,105,0.25)]">
               <p className="text-[11px] font-bold text-emerald-50">手取り</p>
-              <p className="tabular mt-0.5 whitespace-nowrap text-[15px] font-extrabold tracking-tight text-white">
-                {formatYen(r.monthlyTakeHome)}
+              <p className="tabular mt-0.5 whitespace-nowrap text-base font-extrabold tracking-tight text-white">
+                {manShort(r.monthlyTakeHome)}
               </p>
               <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-emerald-50/85">
-                <li>・自由に使える</li>
-                <li>・生活費・貯蓄に</li>
+                <li>・生活費に</li>
+                <li>・貯蓄に</li>
               </ul>
             </div>
           </div>
@@ -780,7 +785,7 @@ export function ResultPanel({
             <p className="text-sm font-bold text-ink-900">
               税金・保険の支払いカレンダー
             </p>
-            <p className="text-[10px] text-ink-400">月をタップで内訳</p>
+            <p className="text-[11px] text-ink-400">月をタップで内訳</p>
           </div>
           <p className="mb-1 mt-0.5 text-xs leading-relaxed text-ink-500">
             今年かせいだ分の税・保険は、精算(支払い)が翌年から始まります。年金だけは今年から毎月。
@@ -909,7 +914,7 @@ export function ResultPanel({
               aria-label="iDeCoの掛金(月額)"
               className="mt-3 h-2 w-full cursor-pointer accent-sky-700"
             />
-            <div className="flex justify-between text-[10px] text-sky-800/70">
+            <div className="flex justify-between text-[11px] text-sky-800/70">
               <span>なし</span>
               <span>
                 上限 月{(IDECO_MONTHLY_MAX / 10000).toLocaleString('ja-JP')}
@@ -969,7 +974,7 @@ export function ResultPanel({
         {/* ▼ ここから詳しい内訳 */}
         <div className="mt-6 flex items-center justify-between border-t border-cream-200 pt-4">
           <p className="text-xs font-semibold text-ink-400">詳しい内訳</p>
-          <span className="flex items-center gap-1 text-[11px] text-ink-400">
+          <span className="flex items-center gap-1 text-xs text-ink-400">
             <span className="grid h-4 w-4 place-items-center rounded-full bg-emerald-100 text-[9px] text-emerald-700">
               ▼
             </span>
