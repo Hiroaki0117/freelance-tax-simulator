@@ -798,9 +798,8 @@ export function ResultPanel({
               {formatYen(r.furusatoNozeiLimit)}
             </span>
           </div>
-          <p className="mt-1 text-[11px] leading-relaxed text-orange-700/80">
-            実質負担2,000円で済む寄附のおおよその上限(住民税所得割 × 20% ÷ (90%
-            − 所得税率×1.021) + 2,000円)。あくまで目安です。
+          <p className="mt-1 text-xs leading-relaxed text-orange-700/90">
+            実質負担2,000円で済む寄附の、おおよその上限です(あくまで目安)。
           </p>
 
           {/* 寄附額をその場で入れて効果を見る */}
@@ -868,18 +867,16 @@ export function ResultPanel({
                 <span className="tabular">{formatYen(f.outOfPocket)}</span>
               </div>
               {f.overLimit ? (
-                <p className="rounded-lg bg-red-50 px-2 py-1.5 text-[11px] leading-relaxed text-red-700">
+                <p className="rounded-lg bg-red-50 px-2 py-1.5 text-xs leading-relaxed text-red-700">
                   ⚠️ 上限(約{formatYen(r.furusatoNozeiLimit)}
-                  )を超えています。超えた分は控除しきれず、実質負担が2,000円より増えます(
-                  {formatYen(f.outOfPocket)}
-                  )。上限内に抑えると自己負担2,000円で済みます。
+                  )を超えています。超えた分は控除されず、実質負担は
+                  {formatYen(f.outOfPocket)}に増えます。
                 </p>
               ) : (
-                <p className="text-[11px] leading-relaxed text-orange-700/80">
-                  上限内なので実質2,000円の負担で寄附できます(差額の
+                <p className="text-xs leading-relaxed text-orange-700/90">
+                  上限内なので実質負担は2,000円。差額の
                   {formatYen(f.totalBenefit)}
-                  は税が減って戻ります)。手取りへの影響もこの自己負担分だけで、別途
-                  返礼品がもらえます。
+                  は税が減って戻り、返礼品は別途もらえます。
                 </p>
               )}
             </div>
@@ -897,9 +894,6 @@ export function ResultPanel({
                 月{formatYen(ideco)}
               </span>
             </div>
-            <p className="mt-1 text-[11px] leading-relaxed text-sky-800/80">
-              掛金は全額が所得控除(小規模企業共済等掛金控除)。スライダーを動かすと、税金がいくら減るかその場でわかります。
-            </p>
             {/* 実際の加入は月5,000円から。最初の1目盛り(4,000)を「なし」に
                 割り当て、なし ↔ 5,000円 が1ステップで行き来できるようにする */}
             <input
@@ -947,34 +941,25 @@ export function ResultPanel({
                   </span>
                 </div>
                 {idecoBase.taxTotal - r.taxTotal <= 0 ? (
-                  <p className="rounded-lg bg-white/70 px-2 py-1.5 text-[11px] leading-relaxed text-sky-800/90">
-                    💡
-                    いまの条件では税金がほぼ0円のため、節税の効き目は出ません(掛金は老後の積立としては有効です)。
+                  <p className="rounded-lg bg-white/70 px-2 py-1.5 text-xs leading-relaxed text-sky-800/90">
+                    💡 いまの条件では税金がほぼ0円のため、節税効果は出ません。
                   </p>
                 ) : (
-                  <p className="text-[11px] leading-relaxed text-sky-800/80">
-                    掛金そのものは消える支出ではなく、60歳まで引き出せない自分の老後資産。いま使えるお金の感覚では「掛金
-                    − 節税分」が積立に回るイメージです。
+                  <p className="text-xs leading-relaxed text-sky-800/90">
+                    掛金は消える支出ではなく、60歳まで引き出せない自分の老後資産です。
                   </p>
                 )}
-                <ul className="space-y-0.5 text-[11px] leading-relaxed text-sky-800/70">
-                  <li>
-                    ・国民健康保険は下がりません(所得控除は国保の計算に効かないため)
-                  </li>
+                <ul className="space-y-0.5 text-xs leading-relaxed text-sky-800/80">
+                  <li>・国保は下がりません</li>
                   {r.furusatoNozeiLimit !== idecoBase.furusatoNozeiLimit && (
                     <li>
-                      ・課税所得が減るぶん、ふるさと納税の上限も
+                      ・ふるさと納税の上限も
                       {formatYen(
                         idecoBase.furusatoNozeiLimit - r.furusatoNozeiLimit
                       )}
-                      ほど下がります(上のパネルは反映済み)
+                      下がります(上のパネルは反映済み)
                     </li>
                   )}
-                  <li>
-                    ・実際に加入できる掛金は月
-                    {IDECO_MONTHLY_MIN.toLocaleString('ja-JP')}
-                    円から1,000円単位です
-                  </li>
                 </ul>
               </div>
             )}
