@@ -370,7 +370,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
           className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-gradient-to-b from-emerald-300 to-amber-300"
           aria-hidden
         />
-        <span className="relative flex items-center gap-2 rounded-full border border-amber-200 bg-white px-4 py-2 shadow-sm">
+        <span className="relative flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 shadow-[0_3px_10px_rgba(180,83,9,0.18)]">
           <span
             className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-gradient-to-br from-emerald-500 to-amber-500 text-xs font-bold leading-none text-white"
             aria-hidden
