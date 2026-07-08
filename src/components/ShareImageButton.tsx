@@ -17,7 +17,7 @@ const C = {
   emerald700: '#047857',
   expense: '#e0d6bf',
   tax: '#fbbf24',
-  insurance: '#fb923c',
+  insurance: '#0ea5e9', // 画面の内訳バーと同じ(税金のamberと色覚でも区別できる青系)
   takeHome: '#059669',
 };
 

@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { TaxResult } from '@/lib/tax/types';
 import { calculateTax } from '@/lib/tax/calculator';
 import { CONSUMPTION_LABELS, formatPercent, formatYen } from '@/lib/tax/format';
@@ -41,6 +42,193 @@ function numFromText(value: string): number {
 
 function withCommas(value: number): string {
   return value ? value.toLocaleString('ja-JP') : '';
+}
+
+/** 数値の変化をなめらかに追いかける(初回は0からカウントアップ)。
+    reduced-motion 設定なら即時反映 */
+function useAnimatedNumber(target: number, duration = 450): number {
+  const [display, setDisplay] = useState(0);
+  // いま画面に出ている値。中断(StrictModeの二重実行含む)後の再開基点になる
+  const displayRef = useRef(0);
+
+  useEffect(() => {
+    const from = displayRef.current;
+    if (from === target) return;
+    // reduced-motion なら1フレームで最終値へ(setState は必ず rAF 経由)
+    const dur = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 0
+      : duration;
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const p = dur === 0 ? 1 : Math.min((now - t0) / dur, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const value = from + (target - from) * eased;
+      displayRef.current = value;
+      setDisplay(value);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+
+  return display;
+}
+
+/** 値が変わった瞬間の増減を返す(バッジ表示用。初回マウントでは出さない) */
+function useDelta(value: number): { amount: number; id: number } | null {
+  const prev = useRef<number | null>(null);
+  const [delta, setDelta] = useState<{ amount: number; id: number } | null>(
+    null
+  );
+  useEffect(() => {
+    if (prev.current !== null && value !== prev.current) {
+      setDelta({ amount: value - prev.current, id: Date.now() });
+    }
+    prev.current = value;
+  }, [value]);
+  return delta;
+}
+
+/** 増減バッジの表示テキスト(1万円未満は円、以上は万円) */
+function fmtDelta(yen: number): string {
+  const sign = yen > 0 ? '+' : '−';
+  const abs = Math.abs(yen);
+  if (abs >= 10000) {
+    return `${sign}${(abs / 10000).toLocaleString('ja-JP', { maximumFractionDigits: 1 })}万円`;
+  }
+  return `${sign}${abs.toLocaleString('ja-JP')}円`;
+}
+
+/** 手取りの増減バッジ(CSSアニメーションで勝手に消える) */
+function DeltaBadge({
+  delta,
+  small,
+}: {
+  delta: { amount: number; id: number } | null;
+  small?: boolean;
+}) {
+  if (!delta || delta.amount === 0) return null;
+  return (
+    <span
+      key={delta.id}
+      className={`delta-pop tabular inline-block rounded-full bg-white/95 font-bold shadow-sm ${
+        delta.amount > 0 ? 'text-emerald-700' : 'text-rose-600'
+      } ${small ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm'}`}
+      role="status"
+    >
+      {fmtDelta(delta.amount)}
+    </span>
+  );
+}
+
+/** ひとこと診断:結果を3行の言葉で(テンプレ生成) */
+function Diagnosis({ result }: { result: TaxResult }) {
+  const r = result;
+  if (r.input.revenue <= 0) return null;
+
+  const takeRate = Math.round((r.takeHome / r.input.revenue) * 100);
+
+  // いちばん重い負担項目
+  const heaviest = (
+    [
+      ['所得税', r.incomeTax],
+      ['住民税', r.residentTax],
+      ['個人事業税', r.businessTax],
+      ['消費税', r.consumptionTax],
+      [
+        r.input.insurance === 'kokuho' ? '国民健康保険' : '健康保険',
+        r.healthInsurance,
+      ],
+      ['国民年金', r.nationalPension],
+    ] as [string, number][]
+  ).reduce((a, b) => (b[1] > a[1] ? b : a));
+
+  // 翌年3月の確定申告の山(所得税+消費税)
+  const marchLump = r.incomeTax + r.consumptionTax;
+
+  const lines: React.ReactNode[] = [];
+
+  if (r.takeHome < 0) {
+    lines.push(
+      <>
+        いまの条件では、経費と税・保険が売上を上回っています(手取り
+        <strong className="tabular text-ink-900">
+          −{man(Math.abs(r.takeHome))}万円
+        </strong>
+        )。数字を見直してみてください。
+      </>
+    );
+  } else {
+    lines.push(
+      <>
+        売上{man(r.input.revenue)}万円のうち、手取りは
+        <strong className="tabular text-ink-900">
+          {man(r.takeHome)}万円(
+          {takeRate}%)
+        </strong>
+        。
+      </>
+    );
+  }
+
+  if (heaviest[1] > 0) {
+    lines.push(
+      <>
+        いちばん重いのは
+        <strong className="tabular text-ink-900">
+          {heaviest[0]}の{man(heaviest[1])}万円
+        </strong>
+        。
+      </>
+    );
+  }
+
+  if (marchLump > 0) {
+    lines.push(
+      <>
+        来年3月の確定申告で
+        <strong className="tabular text-ink-900">
+          約{man(marchLump)}万円の山
+        </strong>
+        が来ます。毎月
+        <strong className="tabular text-ink-900">
+          {manShort(r.monthlyTaxReserve)}円
+        </strong>
+        よけておけば慌てません。
+      </>
+    );
+  } else if (r.residentTax > 0) {
+    lines.push(
+      <>
+        3月の納付はなし。山は来年6月からの住民税(1期あたり
+        <strong className="tabular text-ink-900">
+          約{man(Math.round(r.residentTax / 4))}万円
+        </strong>
+        )です。
+      </>
+    );
+  } else if (r.burdenTotal <= 0) {
+    lines.push(<>今回の条件では、税・保険の負担はほとんどありません。</>);
+  }
+
+  return (
+    <div className="mb-4 rounded-2xl bg-cream-50 p-4">
+      <p className="flex items-center gap-2 text-sm font-bold text-ink-900">
+        <span className="grid h-6 w-6 place-items-center rounded-lg bg-cream-200 text-sm">
+          🔎
+        </span>
+        ひとこと診断
+      </p>
+      <ul className="mt-2 space-y-1">
+        {lines.map((l, i) => (
+          <li key={i} className="text-[13px] leading-relaxed text-ink-600">
+            {l}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function Detail({ rows }: { rows: DetailRow[] }) {
@@ -153,14 +341,17 @@ function Row({
   hint,
   strong,
   detail,
+  defaultOpen,
 }: {
   label: string;
   value: string;
   hint?: string;
   strong?: boolean;
   detail?: DetailRow[];
+  /** 最初から展開しておく(「行は開ける」ことを1行目で体験させる用) */
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen ?? false);
   const labelClass = `text-sm ${strong ? 'font-semibold text-ink-900' : 'text-ink-600'}`;
   const valueClass = `tabular text-right ${strong ? 'text-base font-semibold' : 'text-sm'}`;
 
@@ -233,8 +424,9 @@ function BreakdownBar({
   const pct = (v: number) => (Math.max(0, v) / total) * 100;
   return (
     <div>
-      {/* バー本体:幅のある区分は中に「名前＋割合」を表示 */}
-      <div className="flex h-12 overflow-hidden rounded-xl">
+      {/* バー本体:幅のある区分は中に「名前＋割合」を表示。
+          区分の境目は白の細い隙間で(色の近さに頼らず判別できるように) */}
+      <div className="flex h-12 gap-[2px] overflow-hidden rounded-xl">
         {segments.map((s) => {
           const p = pct(s.value);
           return (
@@ -307,6 +499,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
   const r = result;
   const isKokuho = r.input.insurance === 'kokuho';
   const healthMonthly = Math.round(r.healthInsurance / 12);
+  const paysPensionThisYear = r.input.insurance !== 'dependent';
 
   // 3月の確定申告でまとめて来るもの(所得税・消費税)
   const kakutei: TimelineItem[] = [];
@@ -340,7 +533,13 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
         ? '国保が新年度(今年の所得ベース)に切替。実際の請求は6月ごろから届きます。'
         : 'この時期は大きな支払いなし。',
     },
-    { lab: '5月', items: [], kokuho: false, big: false, note: '大きな支払いなし。' },
+    {
+      lab: '5月',
+      items: [],
+      kokuho: false,
+      big: false,
+      note: '大きな支払いなし。',
+    },
     {
       lab: '6月',
       items: juminInst > 0 ? [{ label: '住民税 1期', amount: juminInst }] : [],
@@ -385,7 +584,8 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
     },
     {
       lab: '11月',
-      items: jigyoInst > 0 ? [{ label: '個人事業税 2期', amount: jigyoInst }] : [],
+      items:
+        jigyoInst > 0 ? [{ label: '個人事業税 2期', amount: jigyoInst }] : [],
       kokuho: isKokuho,
       big: false,
       note: '個人事業税2期。',
@@ -408,7 +608,8 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
     },
   ];
 
-  const lumpOf = (m: TimelineMonth) => m.items.reduce((a, x) => a + x.amount, 0);
+  const lumpOf = (m: TimelineMonth) =>
+    m.items.reduce((a, x) => a + x.amount, 0);
   const maxLump = Math.max(1, ...months.map(lumpOf));
   const peak = months.reduce(
     (best, m, i) => (lumpOf(m) > lumpOf(months[best]) ? i : best),
@@ -432,6 +633,30 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
         <p className="mt-2.5 text-[13px] font-semibold leading-relaxed text-emerald-950">
           働いて得た所得で、翌年の税額が決まる年。ふるさと納税をするなら、この年のうちに。
         </p>
+
+        {/* 今年、毎月出ていくもの(年金は今年から。任意継続などの健保も今年) */}
+        <div className="mt-2.5 space-y-1 rounded-xl bg-white/70 px-3 py-2 text-xs">
+          {paysPensionThisYear ? (
+            <div className="flex items-baseline justify-between gap-2 text-emerald-900">
+              <span>国民年金(今年から毎月)</span>
+              <span className="tabular shrink-0">
+                月 {formatYen(NATIONAL_PENSION_MONTHLY)}
+              </span>
+            </div>
+          ) : (
+            <p className="leading-relaxed text-emerald-900/80">
+              扶養内のため、毎月の年金・健保の自己負担はありません。
+            </p>
+          )}
+          {!isKokuho && paysPensionThisYear && r.healthInsurance > 0 && (
+            <div className="flex items-baseline justify-between gap-2 text-emerald-900">
+              <span>健康保険(任意継続など・毎月)</span>
+              <span className="tabular shrink-0">
+                月 約{formatYen(healthMonthly)}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 受け渡し:稼ぐ(緑) → 払う(オレンジ)のズレを橋渡し */}
@@ -490,7 +715,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
                 className="flex flex-col items-center gap-1"
               >
                 <div className="flex h-24 w-full flex-col items-center justify-end gap-0.5">
-                  <span className="h-3 whitespace-nowrap text-[10px] font-bold leading-none text-amber-700">
+                  <span className="h-3.5 whitespace-nowrap text-[11px] font-bold leading-none text-amber-700">
                     {isSel && l > 0 ? `${man(l)}万` : ''}
                   </span>
                   <div
@@ -502,18 +727,18 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
                           : m.big
                             ? 'bg-amber-500'
                             : 'bg-amber-300 hover:bg-amber-400'
-                    } ${m.kokuho ? 'shadow-[0_3px_0_#fb923c]' : ''}`}
+                    } ${m.kokuho ? 'shadow-[0_3px_0_#38bdf8]' : ''}`}
                     style={{ height: `${h}%` }}
                   />
                 </div>
                 <span
-                  className={`text-[10px] leading-none ${
+                  className={`text-[11px] leading-none ${
                     isSel ? 'font-bold text-amber-700' : 'text-ink-400'
                   }`}
                 >
                   {m.lab}
                 </span>
-                <span className="text-[9px] leading-none text-ink-400">
+                <span className="text-[10px] leading-none text-ink-400">
                   {m.yr ?? ''}
                 </span>
               </button>
@@ -538,7 +763,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
               </div>
             ))}
             {sel.kokuho && (
-              <div className="flex items-baseline justify-between gap-2 text-orange-700">
+              <div className="flex items-baseline justify-between gap-2 text-sky-700">
                 <span>国民健康保険(毎月)</span>
                 <span className="tabular">約 {formatYen(healthMonthly)}</span>
               </div>
@@ -553,7 +778,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
             )}
           </div>
           {sel.tag && (
-            <span className="mt-2 inline-block rounded-full bg-orange-100 px-2.5 py-0.5 text-[11px] font-bold text-orange-700">
+            <span className="mt-2 inline-block rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-bold text-sky-700">
               {sel.tag}
             </span>
           )}
@@ -569,7 +794,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
             まとめて来る税
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="inline-block h-2.5 w-2.5 rounded bg-orange-400" />
+            <span className="inline-block h-2.5 w-2.5 rounded bg-sky-400" />
             国保(6月〜毎月)
           </span>
         </div>
@@ -606,21 +831,97 @@ export function ResultPanel({
   const paysPension = r.input.insurance !== 'dependent';
   const takeHomeRate = r.input.revenue > 0 ? r.takeHome / r.input.revenue : 0;
 
+  // 手取りはカウントアップで追いかけ、変化した瞬間は増減バッジで見せる
+  const takeHomeAnimated = useAnimatedNumber(r.takeHome);
+  const monthlyAnimated = useAnimatedNumber(r.monthlyTakeHome);
+  const takeHomeDelta = useDelta(r.takeHome);
+
+  // ヒーローを上に通り過ぎたら、手取りのミニバーを貼り付ける。
+  // IntersectionObserver は瞬間ジャンプ(非交差→非交差)で発火しないことが
+  // あるため、スクロールごとに位置を見る(rAFで間引き)
+  const heroRef = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    const check = () => {
+      raf = 0;
+      const rect = heroRef.current?.getBoundingClientRect();
+      setStuck(!!rect && rect.bottom <= 0);
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(check);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  function jumpTo(id: string) {
+    document
+      .getElementById(id)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   return (
     <div className="overflow-hidden rounded-3xl bg-white shadow-warm">
+      {/* スティッキー手取りバー(長い結果のどこにいても主役が見える)。
+          祖先の transform(rise-in)の影響で fixed の基準がずれないよう body 直下へ */}
+      {stuck &&
+        createPortal(
+          <div className="slide-down fixed inset-x-0 top-0 z-40 bg-emerald-600/95 text-white shadow-[0_4px_14px_rgba(5,150,105,0.35)] backdrop-blur">
+            <button
+              type="button"
+              aria-label="結果の先頭に戻る"
+              onClick={() =>
+                heroRef.current?.scrollIntoView({
+                  behavior: 'smooth',
+                  block: 'start',
+                })
+              }
+              className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 px-5 py-2.5 text-left"
+            >
+              <span className="flex items-baseline gap-1.5">
+                <span className="text-xs font-medium text-emerald-50">
+                  手取り(年)
+                </span>
+                <span className="tabular text-lg font-extrabold leading-none">
+                  {man(takeHomeAnimated)}万円
+                </span>
+                {takeHomeRate > 0 && (
+                  <span className="tabular text-xs text-emerald-50/90">
+                    残る{formatPercent(takeHomeRate, 0)}
+                  </span>
+                )}
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <DeltaBadge delta={takeHomeDelta} small />
+                <span className="text-xs text-emerald-50/80">▲ 先頭へ</span>
+              </span>
+            </button>
+          </div>,
+          document.body
+        )}
+
       {/* 手取り(主役)— 色つきヒーローヘッダー */}
-      <div className="relative bg-gradient-to-br from-emerald-500 to-emerald-600 px-6 pb-6 pt-7 text-white">
+      <div
+        ref={heroRef}
+        className="relative scroll-mt-4 bg-gradient-to-br from-emerald-500 to-emerald-600 px-6 pb-6 pt-7 text-white"
+      >
         <p className="text-sm font-medium text-emerald-50">
           あなたの手取り(年)
         </p>
-        <p className="mt-1.5 flex items-baseline gap-1.5">
+        <p className="mt-1.5 flex flex-wrap items-baseline gap-1.5">
           <span className="tabular text-[3.25rem] font-extrabold leading-[0.9] tracking-tight">
-            {man(r.takeHome)}
+            {man(takeHomeAnimated)}
           </span>
           <span className="text-xl font-bold">万円</span>
-          <span className="tabular ml-1 text-sm font-normal text-emerald-50/80">
+          <span className="tabular ml-1 text-sm font-normal text-white/95">
             ({formatYen(r.takeHome)})
           </span>
+          <DeltaBadge delta={takeHomeDelta} />
         </p>
 
         {/* 月あたり・残る割合(自分ごとに響く2つ) */}
@@ -628,7 +929,7 @@ export function ResultPanel({
           <div className="rounded-2xl bg-white/15 px-3.5 py-2.5">
             <p className="text-xs text-emerald-50/90">月あたりの手取り</p>
             <p className="tabular mt-0.5 text-xl font-bold leading-none">
-              約{man(r.monthlyTakeHome)}
+              約{man(monthlyAnimated)}
               <span className="ml-0.5 text-xs font-semibold">万円</span>
             </p>
           </div>
@@ -643,6 +944,33 @@ export function ResultPanel({
 
       {/* 白ボディ(内訳・明細) */}
       <div className="px-6 pb-6 pt-5">
+        {/* 結果内ジャンプ(長い結果の目次+この先の予告) */}
+        <nav
+          aria-label="結果内の移動"
+          className="no-scrollbar -mx-6 mb-4 flex gap-2 overflow-x-auto px-6"
+        >
+          {(
+            [
+              ['sec-breakdown', '内訳'],
+              ['sec-monthly', '毎月'],
+              ['sec-calendar', 'カレンダー'],
+              ['sec-savings', '節税'],
+              ['sec-details', '明細'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => jumpTo(id)}
+              className="shrink-0 rounded-full border-[1.5px] border-cream-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-ink-600 transition-colors hover:border-emerald-400 hover:text-emerald-700"
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        {/* ひとこと診断(数字の前に、言葉で結論) */}
+        <Diagnosis result={r} />
         {/* 数字をその場で動かせるミニ入力(探索用。前提の変更は上のフォームで) */}
         {onRevenueChange && onExpensesChange && (
           <div className="mb-4 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/60 p-4">
@@ -681,7 +1009,7 @@ export function ResultPanel({
         </p>
 
         {/* 売上の分かれ方 */}
-        <div className="mt-5">
+        <div className="mt-5 scroll-mt-14" id="sec-breakdown">
           <p className="mb-2 text-sm font-bold text-ink-900">
             売上{man(r.input.revenue)}万円は、こう分かれます
           </p>
@@ -700,9 +1028,11 @@ export function ResultPanel({
                 text: 'text-amber-900',
               },
               {
+                // 税金(amber)と色相が近いと色覚によっては区別できないため、
+                // 保険・年金は青系に(iDeCoパネルのskyと同系統)
                 label: '保険・年金',
                 value: r.socialInsuranceTotal,
-                color: 'bg-orange-400',
+                color: 'bg-sky-500',
                 text: 'text-white',
               },
               {
@@ -727,7 +1057,10 @@ export function ResultPanel({
         </div>
 
         {/* 毎月のお金の3分解 */}
-        <div className="mt-5 rounded-2xl border border-cream-200 p-4">
+        <div
+          className="mt-5 scroll-mt-14 rounded-2xl border border-cream-200 p-4"
+          id="sec-monthly"
+        >
           <p className="text-sm font-bold text-ink-900">
             毎月、自由に使えるのは？
           </p>
@@ -741,12 +1074,13 @@ export function ResultPanel({
             から、固定費と税をよけた残りが手取りです。
           </p>
           <div className="mt-3 grid grid-cols-3 items-stretch gap-1.5">
-            <div className="rounded-2xl bg-cream-100 px-2.5 py-3">
-              <p className="text-[11px] font-semibold text-ink-500">固定費</p>
-              <p className="tabular mt-0.5 whitespace-nowrap text-base font-bold tracking-tight text-ink-900">
+            {/* 固定費=保険・年金なので、内訳バーの「保険・年金」と同じ青系に揃える */}
+            <div className="rounded-2xl bg-sky-50 px-2.5 py-3">
+              <p className="text-[11px] font-semibold text-sky-700">固定費</p>
+              <p className="tabular mt-0.5 whitespace-nowrap text-base font-bold tracking-tight text-sky-900">
                 {manShort(r.monthlyFixedCost)}
               </p>
-              <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-ink-400">
+              <ul className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-sky-700/70">
                 <li>・国保</li>
                 <li>・国民年金</li>
               </ul>
@@ -776,11 +1110,13 @@ export function ResultPanel({
               </ul>
             </div>
           </div>
-
         </div>
 
         {/* 税金・保険の支払いカレンダー(稼ぐ年 → 払う年) */}
-        <div className="mt-4 rounded-2xl border border-cream-200 p-4">
+        <div
+          className="mt-4 scroll-mt-14 rounded-2xl border border-cream-200 p-4"
+          id="sec-calendar"
+        >
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-sm font-bold text-ink-900">
               税金・保険の支払いカレンダー
@@ -793,8 +1129,11 @@ export function ResultPanel({
           <PaymentTimeline result={r} />
         </div>
 
-        {/* ふるさと納税 */}
-        <div className="mt-4 rounded-2xl bg-orange-50 px-4 py-3">
+        {/* ふるさと納税(ここから節税ゾーン) */}
+        <div
+          className="mt-4 scroll-mt-14 rounded-2xl bg-orange-50 px-4 py-3"
+          id="sec-savings"
+        >
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-sm font-bold text-orange-800">
               🍑 ふるさと納税の上限目安
@@ -822,7 +1161,9 @@ export function ResultPanel({
                   inputMode="numeric"
                   className="tabular w-full rounded-xl border-[1.5px] border-orange-200 bg-white px-3 py-2 text-sm font-bold text-ink-900 focus:border-orange-400 focus:outline-none"
                   value={withCommas(f.donation)}
-                  onChange={(e) => onFurusatoChange(numFromText(e.target.value))}
+                  onChange={(e) =>
+                    onFurusatoChange(numFromText(e.target.value))
+                  }
                   placeholder="0"
                 />
                 <span className="shrink-0 text-xs font-semibold text-orange-800">
@@ -972,7 +1313,10 @@ export function ResultPanel({
         )}
 
         {/* ▼ ここから詳しい内訳 */}
-        <div className="mt-6 flex items-center justify-between border-t border-cream-200 pt-4">
+        <div
+          className="mt-6 flex scroll-mt-14 items-center justify-between border-t border-cream-200 pt-4"
+          id="sec-details"
+        >
           <p className="text-xs font-semibold text-ink-400">詳しい内訳</p>
           <span className="flex items-center gap-1 text-xs text-ink-400">
             <span className="grid h-4 w-4 place-items-center rounded-full bg-emerald-100 text-[9px] text-emerald-700">
@@ -1059,6 +1403,7 @@ export function ResultPanel({
               label="所得税"
               hint="(復興税込)"
               value={formatYen(r.incomeTax)}
+              defaultOpen
               detail={[
                 {
                   label:
