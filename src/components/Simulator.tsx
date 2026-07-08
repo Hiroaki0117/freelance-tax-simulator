@@ -32,7 +32,9 @@ export function Simulator() {
 
   const result = useMemo(() => calculateTax(input), [input]);
   const hasRevenue = input.revenue > 0;
-  const showingResult = showResult && hasRevenue;
+  // 一度開いた結果は閉じない(結果内のその場編集で売上が一時的に0になっても、
+  // 入力欄ごと消えてフォーカスを失わないように)
+  const showingResult = showResult;
 
   // 「結果をみる」を押して結果が現れたら、そこまでスクロールする
   useEffect(() => {
@@ -56,6 +58,11 @@ export function Simulator() {
   function handleFormChange(next: TaxInput) {
     if (next.expenses !== input.expenses) setExpensesTouched(true);
     setInput(next);
+  }
+
+  function setExpenses(expenses: number) {
+    setExpensesTouched(true);
+    setInput((prev) => ({ ...prev, expenses }));
   }
 
   function handleCta() {
@@ -199,7 +206,12 @@ export function Simulator() {
       {/* 結果(「結果をみる」を押すと出る) */}
       {showingResult && (
         <div ref={resultRef} className="rise-in mt-6 scroll-mt-4">
-          <ResultPanel result={result} expensesAssumed={!expensesTouched} />
+          <ResultPanel
+            result={result}
+            expensesAssumed={!expensesTouched}
+            onRevenueChange={setRevenue}
+            onExpensesChange={setExpenses}
+          />
         </div>
       )}
 
