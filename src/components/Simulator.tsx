@@ -197,7 +197,7 @@ export function Simulator() {
         </button>
       </div>
 
-      <p className="mt-3.5 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-ink-400">
+      <p className="mt-3.5 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-ink-400">
         <span>✓ 登録・ログインなし</span>
         <span>✓ 入力内容は保存されません</span>
         <span>✓ 令和7年({TAX_YEAR}年)分対応</span>
