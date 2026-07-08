@@ -211,132 +211,319 @@ function BreakdownBar({
   );
 }
 
-/** 表示は年度に合わせて4月始まり(index は 0=1月) */
-const MONTH_ORDER = [3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2];
-
-interface DueItem {
+interface TimelineItem {
   label: string;
   amount: number;
 }
 
-/** 税の納付スケジュールを棒グラフで見せ、月をタップで内訳を表示する(目安) */
-function TaxCalendar({ result }: { result: TaxResult }) {
+interface TimelineMonth {
+  lab: string; // 月ラベル(例: '3月')
+  yr?: string; // 年のヒント(翌年 / 翌々年)
+  items: TimelineItem[]; // その月に「まとめて来る税」
+  kokuho: boolean; // 国保の請求がこの月にあるか(6月〜)
+  tag?: string; // 金額のない出来事(国保 新年度切替 など)
+  big: boolean; // 確定申告など、強調する山
+  note: string; // ひとこと解説
+}
+
+/**
+ * 支払いカレンダー(稼ぐ年 → 払う年 の2レーン)。
+ * 「今年の所得」にかかる税・社会保険が、翌年どの時期に来るかを見せる。
+ *  - 稼ぐ年(今年): 国民年金は毎月。任意継続などの健保も今年・毎月。手取りが積み上がる。
+ *  - 払う年(翌年): 所得税・消費税は翌3月の確定申告、国保は翌4月〜(請求6月〜)、
+ *    住民税は翌6月〜、個人事業税は翌8月・11月。
+ */
+function PaymentTimeline({ result }: { result: TaxResult }) {
   const r = result;
-  const monthlyFixed = (r.nationalPension + r.healthInsurance) / 12;
+  const paysPension = r.input.insurance !== 'dependent';
+  const isKokuho = r.input.insurance === 'kokuho';
+  const pensionMonthly = paysPension ? Math.round(r.nationalPension / 12) : 0;
+  const healthMonthly = Math.round(r.healthInsurance / 12);
+  // 任意継続・その他の健保は今年・毎月払い(稼ぐ年)、国保は翌年に精算(払う年)
+  const healthInEarnLane = !isKokuho && r.healthInsurance > 0;
 
-  // 月ごとの「まとめて来る税」の内訳(index 0 = 1月)
-  const items: DueItem[][] = Array.from({ length: 12 }, () => []);
-  if (r.incomeTax > 0) items[2].push({ label: '所得税', amount: r.incomeTax });
+  // 3月の確定申告でまとめて来るもの(所得税・消費税)
+  const kakutei: TimelineItem[] = [];
+  if (r.incomeTax > 0)
+    kakutei.push({ label: '所得税(確定申告)', amount: r.incomeTax });
   if (r.consumptionTax > 0)
-    items[2].push({ label: '消費税', amount: r.consumptionTax });
-  if (r.residentTax > 0) {
-    const inst: [number, string][] = [
-      [5, '1期'],
-      [7, '2期'],
-      [9, '3期'],
-      [0, '4期'],
-    ];
-    inst.forEach(([m, k]) =>
-      items[m].push({ label: `住民税(${k})`, amount: r.residentTax / 4 })
-    );
-  }
-  if (r.businessTax > 0) {
-    const inst: [number, string][] = [
-      [7, '1期'],
-      [10, '2期'],
-    ];
-    inst.forEach(([m, k]) =>
-      items[m].push({ label: `個人事業税(${k})`, amount: r.businessTax / 2 })
-    );
-  }
+    kakutei.push({ label: '消費税(確定申告)', amount: r.consumptionTax });
 
-  const lump = items.map((ms) => ms.reduce((a, x) => a + x.amount, 0));
-  const max = Math.max(...lump);
-  const peak = lump.indexOf(max);
+  const juminInst = r.residentTax > 0 ? Math.round(r.residentTax / 4) : 0;
+  const jigyoInst = r.businessTax > 0 ? Math.round(r.businessTax / 2) : 0;
+
+  const months: TimelineMonth[] = [
+    {
+      lab: '3月',
+      yr: '翌年',
+      items: kakutei,
+      kokuho: false,
+      big: kakutei.length > 0,
+      note:
+        kakutei.length > 0
+          ? '確定申告。所得税と消費税をまとめて納める、1年でいちばん大きい山。'
+          : '確定申告の時期。今回の条件では所得税・消費税の納付はなし。',
+    },
+    {
+      lab: '4月',
+      items: [],
+      kokuho: false,
+      tag: isKokuho ? '国保が新年度に切替' : undefined,
+      big: false,
+      note: isKokuho
+        ? '国保が新年度(今年の所得ベース)に切替。実際の請求は6月ごろから届きます。'
+        : 'この時期は大きな支払いなし。',
+    },
+    { lab: '5月', items: [], kokuho: false, big: false, note: '大きな支払いなし。' },
+    {
+      lab: '6月',
+      items: juminInst > 0 ? [{ label: '住民税 1期', amount: juminInst }] : [],
+      kokuho: isKokuho,
+      big: false,
+      note: isKokuho
+        ? '住民税(1期)がスタート。国保の請求もこの月から始まります。'
+        : '住民税(1期)がスタート。',
+    },
+    {
+      lab: '7月',
+      items: [],
+      kokuho: isKokuho,
+      big: false,
+      note: isKokuho ? '国保のみ。' : '大きな支払いなし。',
+    },
+    {
+      lab: '8月',
+      items: [
+        ...(juminInst > 0 ? [{ label: '住民税 2期', amount: juminInst }] : []),
+        ...(jigyoInst > 0
+          ? [{ label: '個人事業税 1期', amount: jigyoInst }]
+          : []),
+      ],
+      kokuho: isKokuho,
+      big: false,
+      note: '住民税2期に個人事業税1期が重なりやすい月。',
+    },
+    {
+      lab: '9月',
+      items: [],
+      kokuho: isKokuho,
+      big: false,
+      note: isKokuho ? '国保のみ。' : '大きな支払いなし。',
+    },
+    {
+      lab: '10月',
+      items: juminInst > 0 ? [{ label: '住民税 3期', amount: juminInst }] : [],
+      kokuho: isKokuho,
+      big: false,
+      note: '住民税3期。',
+    },
+    {
+      lab: '11月',
+      items: jigyoInst > 0 ? [{ label: '個人事業税 2期', amount: jigyoInst }] : [],
+      kokuho: isKokuho,
+      big: false,
+      note: '個人事業税2期。',
+    },
+    {
+      lab: '12月',
+      items: [],
+      kokuho: isKokuho,
+      big: false,
+      note: isKokuho ? '国保のみ。' : '大きな支払いなし。',
+    },
+    {
+      lab: '1月',
+      yr: '翌々年',
+      items:
+        juminInst > 0 ? [{ label: '住民税 4期(最終)', amount: juminInst }] : [],
+      kokuho: isKokuho,
+      big: false,
+      note: '住民税の最終回。ここで今年ぶんの精算がひと区切り。',
+    },
+  ];
+
+  const lumpOf = (m: TimelineMonth) => m.items.reduce((a, x) => a + x.amount, 0);
+  const maxLump = Math.max(1, ...months.map(lumpOf));
+  const peak = months.reduce(
+    (best, m, i) => (lumpOf(m) > lumpOf(months[best]) ? i : best),
+    0
+  );
   const [selected, setSelected] = useState(peak);
-
-  if (max <= 0) return null;
-  const selItems = items[selected];
-  const selTotal = monthlyFixed + lump[selected];
+  const sel = months[selected];
+  const selTotal = lumpOf(sel) + (sel.kokuho ? healthMonthly : 0);
 
   return (
-    <div>
-      <div className="grid grid-cols-12 gap-1.5">
-        {MONTH_ORDER.map((m) => {
-          const d = lump[m];
-          const isSel = m === selected;
-          return (
-            <button
-              type="button"
-              key={m}
-              onClick={() => setSelected(m)}
-              aria-label={`${m + 1}月の内訳`}
-              aria-pressed={isSel}
-              className="flex flex-col items-center gap-1"
-            >
-              <div className="flex h-36 w-full flex-col items-center justify-end">
-                {isSel && d > 0 && (
-                  <span className="mb-1 whitespace-nowrap text-[10px] font-bold leading-none text-amber-700">
-                    {man(d)}万
-                  </span>
-                )}
-                <div
-                  className={`w-full rounded-t-md transition-[height] duration-500 ${
-                    d <= 0
-                      ? 'bg-cream-200'
-                      : isSel
-                        ? 'bg-amber-500'
-                        : 'bg-amber-300 hover:bg-amber-400'
-                  }`}
-                  style={{
-                    height: d > 0 ? `${Math.max((d / max) * 100, 8)}%` : '5px',
-                  }}
-                />
-              </div>
-              <span
-                className={`text-[11px] ${isSel ? 'font-bold text-amber-700' : 'text-ink-400'}`}
-              >
-                {m + 1}
+    <div className="mt-3">
+      {/* レーン1:稼ぐ年 */}
+      <div className="rounded-2xl border border-emerald-100 bg-gradient-to-b from-emerald-50 to-white p-3.5">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white">
+            今年
+          </span>
+          <span className="text-sm font-bold text-emerald-800">稼ぐ年</span>
+          <span className="text-[11px] text-ink-500">
+            働いて手取りが積み上がる年
+          </span>
+        </div>
+        <div className="mt-3 space-y-1.5 text-xs">
+          {paysPension && (
+            <div className="flex items-center gap-2 text-emerald-800">
+              <span className="h-2 w-2 shrink-0 rounded bg-emerald-500" />
+              <span>国民年金(毎月・定額)</span>
+              <span className="tabular ml-auto shrink-0 whitespace-nowrap font-semibold">
+                {formatYen(pensionMonthly)}/月
               </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 選んだ月に払うもの */}
-      <div className="mt-3 rounded-xl bg-cream-100 px-3 py-2.5">
-        <p className="text-xs font-bold text-ink-900">
-          {selected + 1}月に払うもの
-        </p>
-        <div className="mt-1.5 space-y-1 text-xs text-ink-600">
-          <div className="flex items-baseline justify-between gap-2">
-            <span>
-              国保・年金
-              <span className="ml-1 text-[10px] text-ink-400">(毎月)</span>
-            </span>
-            <span className="tabular">{formatYen(monthlyFixed)}</span>
-          </div>
-          {selItems.map((x) => (
-            <div
-              key={x.label}
-              className="flex items-baseline justify-between gap-2 font-medium text-amber-700"
-            >
-              <span>{x.label}</span>
-              <span className="tabular">{formatYen(x.amount)}</span>
             </div>
-          ))}
-          {selItems.length > 0 && (
-            <div className="flex items-baseline justify-between gap-2 border-t border-cream-300 pt-1 font-bold text-ink-900">
-              <span>この月の合計</span>
-              <span className="tabular">{formatYen(selTotal)}</span>
+          )}
+          {healthInEarnLane && (
+            <div className="flex items-center gap-2 text-emerald-800">
+              <span className="h-2 w-2 shrink-0 rounded bg-emerald-500" />
+              <span>健康保険(任意継続など・毎月)</span>
+              <span className="tabular ml-auto shrink-0 whitespace-nowrap font-semibold">
+                {formatYen(healthMonthly)}/月
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-ink-500">
+            <span className="h-2 w-2 shrink-0 rounded bg-emerald-300" />
+            <span>手取りが毎月積み上がる</span>
+            <span className="tabular ml-auto shrink-0 whitespace-nowrap font-semibold">
+              約{formatYen(r.monthlyTakeHome)}/月
+            </span>
+          </div>
+          {r.furusatoNozeiLimit > 0 && (
+            <div className="flex items-center gap-2 text-ink-500">
+              <span className="h-2 w-2 shrink-0 rounded bg-orange-400" />
+              <span>ふるさと納税(するなら)はこの年に寄附</span>
+              <span className="tabular ml-auto shrink-0 whitespace-nowrap font-semibold">
+                〜{formatYen(r.furusatoNozeiLimit)}
+              </span>
             </div>
           )}
         </div>
-        {selItems.length === 0 && (
-          <p className="mt-1 text-[11px] text-ink-400">
-            この月は国保・年金だけ(まとめて来る税はなし)。
+      </div>
+
+      {/* 受け渡し:稼ぐ → 払う のズレ */}
+      <div className="my-1.5 ml-6 flex items-center gap-2 text-[11px] font-bold text-amber-800">
+        <span className="text-amber-600" aria-hidden>
+          ↘
+        </span>
+        この年の所得で、翌年の税額が決まる
+      </div>
+
+      {/* レーン2:払う年 */}
+      <div className="rounded-2xl border border-amber-100 bg-gradient-to-b from-amber-50 to-white p-3.5">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="rounded-full bg-amber-600 px-2 py-0.5 text-[11px] font-bold text-white">
+            翌年3月〜翌々1月
+          </span>
+          <span className="text-sm font-bold text-amber-800">払う年</span>
+          <span className="text-[11px] text-ink-500">今年ぶんの税・保険を精算</span>
+        </div>
+
+        {/* 月バー(タップで内訳) */}
+        <div className="mt-4 grid grid-cols-11 gap-1">
+          {months.map((m, i) => {
+            const isSel = i === selected;
+            const l = lumpOf(m);
+            const h = l > 0 ? Math.max((l / maxLump) * 100, 8) : 5;
+            return (
+              <button
+                type="button"
+                key={m.lab}
+                onClick={() => setSelected(i)}
+                aria-pressed={isSel}
+                aria-label={`${m.lab}の内訳`}
+                className="flex flex-col items-center gap-1"
+              >
+                <div className="flex h-24 w-full flex-col items-center justify-end gap-0.5">
+                  <span className="h-2.5 whitespace-nowrap text-[9px] font-bold leading-none text-amber-700">
+                    {isSel && l > 0 ? `${man(l)}万` : ''}
+                  </span>
+                  <div
+                    className={`w-full rounded-t-md transition-[height] duration-500 ${
+                      l <= 0
+                        ? 'bg-cream-200'
+                        : isSel
+                          ? 'bg-amber-600'
+                          : m.big
+                            ? 'bg-amber-500'
+                            : 'bg-amber-300 hover:bg-amber-400'
+                    } ${m.kokuho ? 'shadow-[0_3px_0_#fb923c]' : ''}`}
+                    style={{ height: `${h}%` }}
+                  />
+                </div>
+                <span
+                  className={`text-[10px] leading-none ${
+                    isSel ? 'font-bold text-amber-700' : 'text-ink-400'
+                  }`}
+                >
+                  {m.lab}
+                </span>
+                <span className="text-[8px] leading-none text-ink-400">
+                  {m.yr ?? ''}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 選んだ月に払うもの */}
+        <div className="mt-3 rounded-xl bg-cream-100 px-3.5 py-3">
+          <p className="text-[13px] font-bold text-ink-900">
+            {sel.lab}
+            {sel.yr ? `(${sel.yr})` : ''} に払うもの
           </p>
-        )}
+          <div className="mt-1.5 space-y-1 text-xs">
+            {sel.items.map((it) => (
+              <div
+                key={it.label}
+                className="flex items-baseline justify-between gap-2 font-medium text-amber-700"
+              >
+                <span>{it.label}</span>
+                <span className="tabular">{formatYen(it.amount)}</span>
+              </div>
+            ))}
+            {sel.kokuho && (
+              <div className="flex items-baseline justify-between gap-2 text-orange-700">
+                <span>国民健康保険(毎月)</span>
+                <span className="tabular">約 {formatYen(healthMonthly)}</span>
+              </div>
+            )}
+            {selTotal > 0 ? (
+              <div className="flex items-baseline justify-between gap-2 border-t border-cream-300 pt-1 font-bold text-ink-900">
+                <span>この月に出ていくお金</span>
+                <span className="tabular">約 {formatYen(selTotal)}</span>
+              </div>
+            ) : (
+              <p className="text-[11px] text-ink-400">大きな支払いはなし。</p>
+            )}
+          </div>
+          {sel.tag && (
+            <span className="mt-2 inline-block rounded-full bg-orange-100 px-2.5 py-0.5 text-[11px] font-bold text-orange-700">
+              {sel.tag}
+            </span>
+          )}
+          <p className="mt-2 rounded-lg bg-white/70 px-2.5 py-1.5 text-[11px] leading-relaxed text-ink-600">
+            💡 {sel.note}
+          </p>
+        </div>
+
+        {/* 凡例 */}
+        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-ink-500">
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block h-2.5 w-2.5 rounded bg-amber-500" />
+            まとめて来る税
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block h-2.5 w-2.5 rounded bg-orange-400" />
+            国保(6月〜毎月)
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block h-2.5 w-2.5 rounded bg-emerald-500" />
+            年金は稼ぐ年に毎月
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -495,19 +682,20 @@ export function ResultPanel({
             </div>
           </div>
 
-          {/* 税金支払いスケジュール(納税カレンダー) */}
-          <div className="mt-4 border-t border-cream-200 pt-3">
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="text-sm font-bold text-ink-900">
-                税金支払いスケジュール
-              </p>
-              <p className="text-[10px] text-ink-400">月をタップで内訳</p>
-            </div>
-            <p className="mb-2.5 mt-0.5 text-xs text-ink-500">
-              国保・年金は毎月。ほかの税はまとめて来ます。
+        </div>
+
+        {/* 税金・保険の支払いカレンダー(稼ぐ年 → 払う年) */}
+        <div className="mt-4 rounded-2xl border border-cream-200 p-4">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-sm font-bold text-ink-900">
+              税金・保険の支払いカレンダー
             </p>
-            <TaxCalendar result={r} />
+            <p className="text-[10px] text-ink-400">月をタップで内訳</p>
           </div>
+          <p className="mb-1 mt-0.5 text-xs leading-relaxed text-ink-500">
+            今年かせいだ分の税・保険は、精算(支払い)が翌年から始まります。年金だけは今年から毎月。
+          </p>
+          <PaymentTimeline result={r} />
         </div>
 
         {/* ふるさと納税 */}
