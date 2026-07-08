@@ -906,6 +906,14 @@ export function ResultPanel({
                 { label: '売上', value: formatYen(r.input.revenue) },
                 { label: '− 経費', value: formatYen(r.input.expenses) },
                 { label: '− 税・社会保険', value: formatYen(r.burdenTotal) },
+                ...(f.donation > 0
+                  ? [
+                      {
+                        label: '− ふるさと納税の自己負担',
+                        value: `− ${formatYen(f.outOfPocket)}`,
+                      },
+                    ]
+                  : []),
                 { label: '= 手取り', value: formatYen(r.takeHome) },
               ]}
             />

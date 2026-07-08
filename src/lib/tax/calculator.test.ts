@@ -265,6 +265,39 @@ describe('calculateTax(ふるさと納税の実額反映)', () => {
     ).toBe(r.furusato.totalBenefit);
   });
 
+  it('上限内の寄附は手取りが実質自己負担(2,000円)だけ減る', () => {
+    const noDonation = calculateTax(base);
+    const withDonation = calculateTax({ ...base, furusatoDonation: 83_000 });
+    // 税・社会保険の合計はふるさと納税では変わらない(軽減は手取り側で反映)
+    expect(withDonation.burdenTotal).toBe(noDonation.burdenTotal);
+    // 手取りは自己負担分(2,000円)だけ減る
+    expect(withDonation.furusato.outOfPocket).toBe(2_000);
+    expect(withDonation.takeHome).toBe(noDonation.takeHome - 2_000);
+    // 明細の恒等式:手取り = 売上 − 経費 − 負担合計 − 自己負担
+    expect(withDonation.takeHome).toBe(
+      withDonation.input.revenue -
+        withDonation.input.expenses -
+        withDonation.burdenTotal -
+        withDonation.furusato.outOfPocket
+    );
+  });
+
+  it('上限超過なら手取りは実質自己負担(2,000円超)だけ減る', () => {
+    const noDonation = calculateTax(base);
+    const withDonation = calculateTax({ ...base, furusatoDonation: 150_000 });
+    expect(withDonation.furusato.overLimit).toBe(true);
+    expect(withDonation.furusato.outOfPocket).toBeGreaterThan(2_000);
+    expect(withDonation.takeHome).toBe(
+      noDonation.takeHome - withDonation.furusato.outOfPocket
+    );
+  });
+
+  it('寄附0なら手取りは変わらない', () => {
+    const noDonation = calculateTax(base);
+    const zeroDonation = calculateTax({ ...base, furusatoDonation: 0 });
+    expect(zeroDonation.takeHome).toBe(noDonation.takeHome);
+  });
+
   it('上限超過の寄附は特例控除が頭打ちで自己負担が増える', () => {
     const r = calculateTax({ ...base, furusatoDonation: 150_000 });
     expect(r.furusato.overLimit).toBe(true);

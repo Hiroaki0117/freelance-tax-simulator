@@ -331,7 +331,10 @@ export function calculateTax(input: TaxInput): TaxResult {
   // --- 集計 ---
   const taxTotal = incomeTax + residentTax + businessTax + consumptionTax;
   const burdenTotal = taxTotal + socialInsuranceTotal;
-  const takeHome = revenue - expenses - burdenTotal;
+  // ふるさと納税をすると、寄附額のうち軽減分(所得税還付+住民税控除)は税が減って戻り、
+  // 正味の持ち出しは実質自己負担(outOfPocket・上限内なら2,000円)だけ。
+  // その分だけ手取り(使えるお金)が減る(返礼品は別途もらえる)。
+  const takeHome = revenue - expenses - burdenTotal - furusatoOutOfPocket;
   const effectiveRateOnRevenue = revenue > 0 ? burdenTotal / revenue : 0;
   const effectiveRateOnIncome = profit > 0 ? burdenTotal / profit : 0;
   // 毎月のお金の3分解: 国保・年金は毎月払い / 税はまとめて来るので積立 / 残りが手取り
