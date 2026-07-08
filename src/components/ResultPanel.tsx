@@ -372,10 +372,21 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
         />
         <span className="relative flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 shadow-[0_3px_10px_rgba(180,83,9,0.18)]">
           <span
-            className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-gradient-to-br from-emerald-500 to-amber-500 text-xs font-bold leading-none text-white"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-amber-600 text-white"
             aria-hidden
           >
-            ↓
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M8 2v11M3.5 8.5 8 13l4.5-4.5" />
+            </svg>
           </span>
           <span className="text-xs font-bold text-amber-800">
             この年の所得で、翌年の税額が決まる
