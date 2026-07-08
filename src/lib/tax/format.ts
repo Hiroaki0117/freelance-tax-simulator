@@ -59,5 +59,8 @@ export function describeInput(input: TaxInput): string {
   if (input.furusatoDonation > 0) {
     parts.push(`ふるさと納税 ${formatYen(input.furusatoDonation)}`);
   }
+  if (input.idecoMonthly > 0) {
+    parts.push(`iDeCo 月${formatYen(input.idecoMonthly)}`);
+  }
   return parts.join(' / ');
 }

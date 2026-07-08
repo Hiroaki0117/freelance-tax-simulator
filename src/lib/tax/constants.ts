@@ -119,6 +119,19 @@ export const SIMPLIFIED_DEEMED_PURCHASE_RATE = 0.5;
 /** インボイス「2割特例」の控除割合(売上税額の80%を控除) */
 export const SPECIAL_2WARI_DEDUCTION_RATE = 0.8;
 
+/**
+ * iDeCo(個人型確定拠出年金)の掛金上限(第1号被保険者=フリーランス)
+ *
+ * 月68,000円(国民年金基金・付加保険料との合算枠)。掛金は全額が
+ * 小規模企業共済等掛金控除(所得税・住民税とも同額)になる。
+ * 国保の保険料計算には効かない(所得控除は国保の賦課ベースに反映されない)。
+ * 将来メモ: 令和9年(2027年)以降に月75,000円へ引き上げ予定(施行時期は要確認)。
+ */
+export const IDECO_MONTHLY_MAX = 68_000;
+
+/** iDeCoの掛金の最低額(月5,000円・1,000円単位) */
+export const IDECO_MONTHLY_MIN = 5_000;
+
 /** ふるさと納税:自己負担額(2,000円)。寄附額のうちこの額は控除対象外 */
 export const FURUSATO_SELF_BURDEN = 2_000;
 

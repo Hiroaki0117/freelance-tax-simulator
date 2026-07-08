@@ -13,4 +13,5 @@ export const DEFAULT_INPUT: TaxInput = {
   businessTaxApplicable: true,
   age40OrOver: false,
   furusatoDonation: 0,
+  idecoMonthly: 0,
 };

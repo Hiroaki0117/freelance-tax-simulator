@@ -211,6 +211,9 @@ export function Simulator() {
             expensesAssumed={!expensesTouched}
             onRevenueChange={setRevenue}
             onExpensesChange={setExpenses}
+            onIdecoChange={(v) =>
+              setInput((prev) => ({ ...prev, idecoMonthly: v }))
+            }
           />
         </div>
       )}

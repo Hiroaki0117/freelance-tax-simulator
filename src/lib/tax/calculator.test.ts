@@ -20,6 +20,7 @@ const base: TaxInput = {
   businessTaxApplicable: true,
   age40OrOver: false,
   furusatoDonation: 0,
+  idecoMonthly: 0,
 };
 
 describe('calculateIncomeTaxBase(所得税の速算)', () => {
@@ -367,5 +368,67 @@ describe('calculateTax(赤字でも税額がマイナスにならない)', () =>
     expect(r.incomeTax).toBe(0);
     expect(r.residentTax).toBe(0);
     expect(r.businessTax).toBe(0);
+  });
+});
+
+describe('calculateTax(iDeCo・小規模企業共済等掛金控除)', () => {
+  const noIdeco = calculateTax(base);
+  const withIdeco = calculateTax({ ...base, idecoMonthly: 23_000 });
+  const annual = 23_000 * 12; // 276,000円
+
+  it('掛金(年額)が所得税・住民税の両方の所得控除に全額入る', () => {
+    expect(withIdeco.incomeTaxDeductions.ideco).toBe(annual);
+    expect(withIdeco.residentTaxDeductions.ideco).toBe(annual);
+    expect(withIdeco.incomeTaxDeductions.total).toBe(
+      noIdeco.incomeTaxDeductions.total + annual
+    );
+    expect(withIdeco.residentTaxDeductions.total).toBe(
+      noIdeco.residentTaxDeductions.total + annual
+    );
+  });
+
+  it('課税所得が掛金分(1,000円未満切り捨て)だけ下がり、税額が減る', () => {
+    expect(withIdeco.taxableIncomeForIncomeTax).toBe(
+      noIdeco.taxableIncomeForIncomeTax - annual
+    );
+    expect(withIdeco.incomeTax).toBeLessThan(noIdeco.incomeTax);
+    expect(withIdeco.residentTax).toBeLessThan(noIdeco.residentTax);
+  });
+
+  it('国民健康保険と国民年金には効かない(金額が変わらない)', () => {
+    expect(withIdeco.healthInsurance).toBe(noIdeco.healthInsurance);
+    expect(withIdeco.nationalPension).toBe(noIdeco.nationalPension);
+  });
+
+  it('個人事業税・消費税には効かない', () => {
+    expect(withIdeco.businessTax).toBe(noIdeco.businessTax);
+    expect(withIdeco.consumptionTax).toBe(noIdeco.consumptionTax);
+  });
+
+  it('税金が減るぶん手取りは増える', () => {
+    expect(withIdeco.takeHome).toBeGreaterThan(noIdeco.takeHome);
+    expect(withIdeco.takeHome - noIdeco.takeHome).toBe(
+      noIdeco.taxTotal - withIdeco.taxTotal
+    );
+  });
+
+  it('掛金は月68,000円(第1号の上限)でクランプされる', () => {
+    const over = calculateTax({ ...base, idecoMonthly: 100_000 });
+    const atMax = calculateTax({ ...base, idecoMonthly: 68_000 });
+    expect(over.input.idecoMonthly).toBe(68_000);
+    expect(over.incomeTaxDeductions.ideco).toBe(68_000 * 12);
+    expect(over.takeHome).toBe(atMax.takeHome);
+  });
+
+  it('課税所得が減るのでふるさと納税の上限も下がる', () => {
+    expect(withIdeco.furusatoNozeiLimit).toBeLessThan(
+      noIdeco.furusatoNozeiLimit
+    );
+  });
+
+  it('マイナス入力は0(未加入)として扱う', () => {
+    const r = calculateTax({ ...base, idecoMonthly: -5_000 });
+    expect(r.input.idecoMonthly).toBe(0);
+    expect(r.takeHome).toBe(noIdeco.takeHome);
   });
 });
