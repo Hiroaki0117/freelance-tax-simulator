@@ -9,6 +9,7 @@ import {
 } from '@/lib/tax/constants';
 import { DISCLAIMER_SHORT } from '@/lib/disclaimer';
 import { ShareImageButton } from './ShareImageButton';
+import { ManInput } from './ManInput';
 
 interface DetailRow {
   label: string;
@@ -75,6 +76,57 @@ function incomeTaxBracketRows(taxableIncome: number): DetailRow[] {
       highlight: i === applicable,
     };
   });
+}
+
+/** 結果の中で金額をその場調整するミニ入力(±ステッパー付き・万円単位) */
+function InlineField({
+  label,
+  valueYen,
+  onChangeYen,
+  stepYen,
+}: {
+  label: string;
+  valueYen: number;
+  onChangeYen: (yen: number) => void;
+  stepYen: number;
+}) {
+  const stepMan = stepYen / 10000;
+  const stepBtn =
+    'grid h-11 w-11 shrink-0 place-items-center rounded-xl border-[1.5px] border-cream-300 bg-white text-lg font-bold text-ink-600 transition-colors hover:border-emerald-400 hover:text-emerald-700 active:bg-emerald-50';
+  return (
+    <div>
+      <div className="flex items-baseline justify-between">
+        <span className="text-xs font-bold text-ink-700">{label}</span>
+        <span className="text-[10px] text-ink-400">±{stepMan}万</span>
+      </div>
+      <div className="mt-1 flex items-stretch gap-1.5">
+        <button
+          type="button"
+          aria-label={`${label}を${stepMan}万円減らす`}
+          className={stepBtn}
+          onClick={() => onChangeYen(Math.max(0, valueYen - stepYen))}
+        >
+          −
+        </button>
+        <ManInput
+          valueYen={valueYen}
+          onChangeYen={onChangeYen}
+          suffix="万"
+          className="min-w-0 flex-1"
+          inputClassName="tabular h-11 w-full rounded-xl border-[1.5px] border-cream-300 bg-white px-2 pr-7 text-center text-base font-bold text-ink-900 focus:border-emerald-500 focus:outline-none"
+          suffixClassName="text-[10px] font-semibold text-ink-400"
+        />
+        <button
+          type="button"
+          aria-label={`${label}を${stepMan}万円増やす`}
+          className={stepBtn}
+          onClick={() => onChangeYen(valueYen + stepYen)}
+        >
+          ＋
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function Row({
@@ -511,11 +563,16 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
 export function ResultPanel({
   result,
   expensesAssumed,
+  onRevenueChange,
+  onExpensesChange,
 }: {
   result: TaxResult;
   expensesAssumed?: boolean;
+  onRevenueChange?: (yen: number) => void;
+  onExpensesChange?: (yen: number) => void;
 }) {
   const r = result;
+  const editable = Boolean(onRevenueChange && onExpensesChange);
   const b = r.breakdown;
   const f = r.furusato;
   const paysPension = r.input.insurance !== 'dependent';
@@ -558,10 +615,41 @@ export function ResultPanel({
 
       {/* 白ボディ(内訳・明細) */}
       <div className="px-6 pb-6 pt-5">
+        {/* 数字をその場で動かせるミニ入力(探索用。前提の変更は上のフォームで) */}
+        {onRevenueChange && onExpensesChange && (
+          <div className="mb-4 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/60 p-4">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-sm font-bold text-ink-900">
+                数字を動かして、ためしてみる
+              </p>
+              <p className="text-[10px] text-ink-400">変えた瞬間に反映</p>
+            </div>
+            <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2.5">
+              <InlineField
+                label="売上"
+                valueYen={r.input.revenue}
+                onChangeYen={onRevenueChange}
+                stepYen={500_000}
+              />
+              <InlineField
+                label="経費"
+                valueYen={r.input.expenses}
+                onChangeYen={onExpensesChange}
+                stepYen={100_000}
+              />
+            </div>
+            {expensesAssumed && (
+              <p className="mt-2 text-[11px] leading-relaxed text-ink-500">
+                経費は売上の20%で仮置き中。売上を動かすと経費もいっしょに動きます(経費を直接触ると固定されます)。
+              </p>
+            )}
+          </div>
+        )}
+
         <p className="text-xs leading-relaxed text-ink-500">
           売上{man(r.input.revenue)}
           万円から、経費と税金・保険をぜんぶ引いて残る額です。
-          {expensesAssumed && '(経費は売上の20%で仮置き中)'}
+          {expensesAssumed && !editable && '(経費は売上の20%で仮置き中)'}
         </p>
 
         {/* 売上の分かれ方 */}
