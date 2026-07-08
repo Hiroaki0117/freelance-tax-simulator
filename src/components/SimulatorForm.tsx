@@ -67,7 +67,7 @@ export function SimulatorForm({
           }))}
         />
         {expensesAssumed && (
-          <p className="mt-1 text-[11px] leading-relaxed text-amber-700">
+          <p className="mt-1 text-xs leading-relaxed text-amber-700">
             いまは売上の20%で仮置き中。実際に近い額に直すと精度が上がります。
           </p>
         )}
@@ -151,7 +151,7 @@ export function SimulatorForm({
               }
               placeholder="360,000"
             />
-            <p className="mt-1 text-[11px] text-ink-400">
+            <p className="mt-1 text-xs text-ink-400">
               任意継続などの実額を年額で(月額のときは ×12)。
               {manYen(input.healthInsuranceManual)}
             </p>
@@ -244,7 +244,7 @@ export function SimulatorForm({
             </button>
           )}
         </div>
-        <p className="mt-1 text-[11px] text-ink-400">
+        <p className="mt-1 text-xs text-ink-400">
           実額を入れると控除と「実質負担」を概算します(0なら未利用)。
           {manYen(input.furusatoDonation)}
         </p>
