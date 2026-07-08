@@ -28,6 +28,16 @@ function man(value: number): string {
   });
 }
 
+/** 「50,000」のようなカンマ入り数字テキストを数値(円)に */
+function numFromText(value: string): number {
+  const n = Number(value.replace(/[^0-9]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function withCommas(value: number): string {
+  return value ? value.toLocaleString('ja-JP') : '';
+}
+
 function Detail({ rows }: { rows: DetailRow[] }) {
   return (
     <div className="mb-1.5 space-y-1 rounded-xl bg-cream-100 px-3 py-2 text-xs text-ink-600">
@@ -414,7 +424,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
           <span className="text-sm font-bold text-emerald-800">稼ぐ年</span>
           <span className="text-[11px] text-ink-500">働いて所得が決まる年</span>
         </div>
-        <p className="mt-2.5 text-[13px] font-semibold leading-relaxed text-emerald-800">
+        <p className="mt-2.5 text-[13px] font-semibold leading-relaxed text-emerald-950">
           働いて得た所得で、翌年の税額が決まる年。ふるさと納税をするなら、この年のうちに。
         </p>
       </div>
@@ -569,12 +579,14 @@ export function ResultPanel({
   onRevenueChange,
   onExpensesChange,
   onIdecoChange,
+  onFurusatoChange,
 }: {
   result: TaxResult;
   expensesAssumed?: boolean;
   onRevenueChange?: (yen: number) => void;
   onExpensesChange?: (yen: number) => void;
   onIdecoChange?: (monthlyYen: number) => void;
+  onFurusatoChange?: (yen: number) => void;
 }) {
   const r = result;
   const editable = Boolean(onRevenueChange && onExpensesChange);
@@ -791,6 +803,51 @@ export function ResultPanel({
             − 所得税率×1.021) + 2,000円)。あくまで目安です。
           </p>
 
+          {/* 寄附額をその場で入れて効果を見る */}
+          {onFurusatoChange && (
+            <div className="mt-3 border-t border-orange-200 pt-3">
+              <label
+                className="text-xs font-semibold text-orange-800"
+                htmlFor="furusatoInline"
+              >
+                寄附額を入れて、効果をみる(年間)
+              </label>
+              <div className="mt-1 flex items-center gap-2">
+                <input
+                  id="furusatoInline"
+                  inputMode="numeric"
+                  className="tabular w-full rounded-xl border-[1.5px] border-orange-200 bg-white px-3 py-2 text-sm font-bold text-ink-900 focus:border-orange-400 focus:outline-none"
+                  value={withCommas(f.donation)}
+                  onChange={(e) => onFurusatoChange(numFromText(e.target.value))}
+                  placeholder="0"
+                />
+                <span className="shrink-0 text-xs font-semibold text-orange-800">
+                  円
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {r.furusatoNozeiLimit > 0 && (
+                  <button
+                    type="button"
+                    className="rounded-full border border-orange-300 bg-white px-3 py-1 text-xs font-semibold text-orange-700 transition-colors hover:bg-orange-100"
+                    onClick={() => onFurusatoChange(r.furusatoNozeiLimit)}
+                  >
+                    上限額を入れる({formatYen(r.furusatoNozeiLimit)})
+                  </button>
+                )}
+                {f.donation > 0 && (
+                  <button
+                    type="button"
+                    className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs text-orange-700/80 transition-colors hover:bg-orange-100"
+                    onClick={() => onFurusatoChange(0)}
+                  >
+                    クリア
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {f.donation > 0 && (
             <div className="mt-3 space-y-1.5 border-t border-orange-200 pt-3">
               <div className="flex items-baseline justify-between gap-2 text-sm text-orange-800">
@@ -843,13 +900,18 @@ export function ResultPanel({
             <p className="mt-1 text-[11px] leading-relaxed text-sky-800/80">
               掛金は全額が所得控除(小規模企業共済等掛金控除)。スライダーを動かすと、税金がいくら減るかその場でわかります。
             </p>
+            {/* 実際の加入は月5,000円から。最初の1目盛り(4,000)を「なし」に
+                割り当て、なし ↔ 5,000円 が1ステップで行き来できるようにする */}
             <input
               type="range"
-              min={0}
+              min={IDECO_MONTHLY_MIN - 1000}
               max={IDECO_MONTHLY_MAX}
               step={1000}
-              value={ideco}
-              onChange={(e) => onIdecoChange(Number(e.target.value))}
+              value={ideco === 0 ? IDECO_MONTHLY_MIN - 1000 : ideco}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                onIdecoChange(v < IDECO_MONTHLY_MIN ? 0 : v);
+              }}
               aria-label="iDeCoの掛金(月額)"
               className="mt-3 h-2 w-full cursor-pointer accent-sky-700"
             />

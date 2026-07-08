@@ -214,6 +214,9 @@ export function Simulator() {
             onIdecoChange={(v) =>
               setInput((prev) => ({ ...prev, idecoMonthly: v }))
             }
+            onFurusatoChange={(v) =>
+              setInput((prev) => ({ ...prev, furusatoDonation: v }))
+            }
           />
         </div>
       )}
