@@ -235,12 +235,8 @@ interface TimelineMonth {
  */
 function PaymentTimeline({ result }: { result: TaxResult }) {
   const r = result;
-  const paysPension = r.input.insurance !== 'dependent';
   const isKokuho = r.input.insurance === 'kokuho';
-  const pensionMonthly = paysPension ? Math.round(r.nationalPension / 12) : 0;
   const healthMonthly = Math.round(r.healthInsurance / 12);
-  // 任意継続・その他の健保は今年・毎月払い(稼ぐ年)、国保は翌年に精算(払う年)
-  const healthInEarnLane = !isKokuho && r.healthInsurance > 0;
 
   // 3月の確定申告でまとめて来るもの(所得税・消費税)
   const kakutei: TimelineItem[] = [];
@@ -361,54 +357,30 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
             今年
           </span>
           <span className="text-sm font-bold text-emerald-800">稼ぐ年</span>
-          <span className="text-[11px] text-ink-500">
-            働いて手取りが積み上がる年
-          </span>
+          <span className="text-[11px] text-ink-500">働いて所得が決まる年</span>
         </div>
-        <div className="mt-3 space-y-1.5 text-xs">
-          {paysPension && (
-            <div className="flex items-center gap-2 text-emerald-800">
-              <span className="h-2 w-2 shrink-0 rounded bg-emerald-500" />
-              <span>国民年金(毎月・定額)</span>
-              <span className="tabular ml-auto shrink-0 whitespace-nowrap font-semibold">
-                {formatYen(pensionMonthly)}/月
-              </span>
-            </div>
-          )}
-          {healthInEarnLane && (
-            <div className="flex items-center gap-2 text-emerald-800">
-              <span className="h-2 w-2 shrink-0 rounded bg-emerald-500" />
-              <span>健康保険(任意継続など・毎月)</span>
-              <span className="tabular ml-auto shrink-0 whitespace-nowrap font-semibold">
-                {formatYen(healthMonthly)}/月
-              </span>
-            </div>
-          )}
-          <div className="flex items-center gap-2 text-ink-500">
-            <span className="h-2 w-2 shrink-0 rounded bg-emerald-300" />
-            <span>手取りが毎月積み上がる</span>
-            <span className="tabular ml-auto shrink-0 whitespace-nowrap font-semibold">
-              約{formatYen(r.monthlyTakeHome)}/月
-            </span>
-          </div>
-          {r.furusatoNozeiLimit > 0 && (
-            <div className="flex items-center gap-2 text-ink-500">
-              <span className="h-2 w-2 shrink-0 rounded bg-orange-400" />
-              <span>ふるさと納税(するなら)はこの年に寄附</span>
-              <span className="tabular ml-auto shrink-0 whitespace-nowrap font-semibold">
-                〜{formatYen(r.furusatoNozeiLimit)}
-              </span>
-            </div>
-          )}
-        </div>
+        <p className="mt-2.5 text-[13px] font-semibold leading-relaxed text-emerald-800">
+          働いて得た所得で、翌年の税額が決まる年。ふるさと納税をするなら、この年のうちに。
+        </p>
       </div>
 
-      {/* 受け渡し:稼ぐ → 払う のズレ */}
-      <div className="my-1.5 ml-6 flex items-center gap-2 text-[11px] font-bold text-amber-800">
-        <span className="text-amber-600" aria-hidden>
-          ↘
+      {/* 受け渡し:稼ぐ(緑) → 払う(オレンジ)のズレを橋渡し */}
+      <div className="relative flex justify-center py-2.5">
+        <span
+          className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-gradient-to-b from-emerald-300 to-amber-300"
+          aria-hidden
+        />
+        <span className="relative flex items-center gap-2 rounded-full border border-amber-200 bg-white px-4 py-2 shadow-sm">
+          <span
+            className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-gradient-to-br from-emerald-500 to-amber-500 text-xs font-bold leading-none text-white"
+            aria-hidden
+          >
+            ↓
+          </span>
+          <span className="text-xs font-bold text-amber-800">
+            この年の所得で、翌年の税額が決まる
+          </span>
         </span>
-        この年の所得で、翌年の税額が決まる
       </div>
 
       {/* レーン2:払う年 */}
@@ -518,10 +490,6 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-2.5 w-2.5 rounded bg-orange-400" />
             国保(6月〜毎月)
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="inline-block h-2.5 w-2.5 rounded bg-emerald-500" />
-            年金は稼ぐ年に毎月
           </span>
         </div>
       </div>
