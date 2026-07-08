@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { calculateTax } from '@/lib/tax/calculator';
+import { IDECO_MONTHLY_MAX } from '@/lib/tax/constants';
 import { describeInput, formatYen } from '@/lib/tax/format';
 import type {
   ConsumptionTaxMode,
@@ -73,6 +74,7 @@ function sanitizeInput(raw: unknown): TaxInput {
         : Boolean(r.businessTaxApplicable),
     age40OrOver: Boolean(r.age40OrOver),
     furusatoDonation: cap(r.furusatoDonation),
+    idecoMonthly: Math.min(IDECO_MONTHLY_MAX, cap(r.idecoMonthly)),
   };
 }
 
@@ -144,6 +146,11 @@ const SIMULATE_TOOL: Anthropic.Tool = {
         type: 'number',
         description:
           'ふるさと納税の年間寄附額(円)。控除を所得税・住民税に反映し、実質負担(上限内なら約2,000円)を概算する',
+      },
+      idecoMonthly: {
+        type: 'number',
+        description:
+          'iDeCoの掛金(月額・円)。全額が小規模企業共済等掛金控除として所得税・住民税に反映される(上限は月68,000円。国保には効かない)',
       },
     },
     required: [],

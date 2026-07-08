@@ -16,6 +16,7 @@ import {
   FURUSATO_RESIDENT_BASIC_RATE,
   FURUSATO_SELF_BURDEN,
   FURUSATO_SPECIAL_CAP_RATE,
+  IDECO_MONTHLY_MAX,
   INCOME_TAX_BRACKETS,
   KOKUHO,
   NATIONAL_PENSION_ANNUAL,
@@ -214,10 +215,19 @@ export function calculateTax(input: TaxInput): TaxResult {
 
   const socialInsuranceTotal = nationalPension + healthInsurance;
 
+  // --- iDeCo(小規模企業共済等掛金控除)---
+  // 掛金は全額が所得控除(所得税・住民税とも同額)。国保の賦課ベースには効かない。
+  const idecoMonthly = Math.min(
+    IDECO_MONTHLY_MAX,
+    Math.max(0, Math.round(input.idecoMonthly || 0))
+  );
+  const idecoAnnual = idecoMonthly * 12;
+
   // --- 所得税 ---
   const incomeTaxDeductions: DeductionBreakdown = {
     basic: calculateBasicDeductionIncomeTax(businessIncome),
     socialInsurance: socialInsuranceTotal,
+    ideco: idecoAnnual,
     spouse: input.hasSpouse ? SPOUSE_DEDUCTION_INCOME_TAX : 0,
     dependents: dependents * DEPENDENT_DEDUCTION_INCOME_TAX,
     total: 0,
@@ -225,6 +235,7 @@ export function calculateTax(input: TaxInput): TaxResult {
   incomeTaxDeductions.total =
     incomeTaxDeductions.basic +
     incomeTaxDeductions.socialInsurance +
+    incomeTaxDeductions.ideco +
     incomeTaxDeductions.spouse +
     incomeTaxDeductions.dependents;
 
@@ -243,6 +254,7 @@ export function calculateTax(input: TaxInput): TaxResult {
   const residentTaxDeductions: DeductionBreakdown = {
     basic: BASIC_DEDUCTION_RESIDENT_TAX,
     socialInsurance: socialInsuranceTotal,
+    ideco: idecoAnnual,
     spouse: input.hasSpouse ? SPOUSE_DEDUCTION_RESIDENT_TAX : 0,
     dependents: dependents * DEPENDENT_DEDUCTION_RESIDENT_TAX,
     total: 0,
@@ -250,6 +262,7 @@ export function calculateTax(input: TaxInput): TaxResult {
   residentTaxDeductions.total =
     residentTaxDeductions.basic +
     residentTaxDeductions.socialInsurance +
+    residentTaxDeductions.ideco +
     residentTaxDeductions.spouse +
     residentTaxDeductions.dependents;
 
@@ -343,7 +356,7 @@ export function calculateTax(input: TaxInput): TaxResult {
   const monthlyTakeHome = Math.floor(takeHome / 12);
 
   return {
-    input: { ...input, revenue, expenses, dependents, furusatoDonation },
+    input: { ...input, revenue, expenses, dependents, furusatoDonation, idecoMonthly },
     profit,
     blueDeductionApplied,
     businessIncome,

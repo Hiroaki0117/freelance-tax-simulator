@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { TaxResult } from '@/lib/tax/types';
+import { calculateTax } from '@/lib/tax/calculator';
 import { CONSUMPTION_LABELS, formatPercent, formatYen } from '@/lib/tax/format';
 import {
+  IDECO_MONTHLY_MAX,
+  IDECO_MONTHLY_MIN,
   INCOME_TAX_BRACKETS,
   NATIONAL_PENSION_MONTHLY,
 } from '@/lib/tax/constants';
@@ -565,14 +568,22 @@ export function ResultPanel({
   expensesAssumed,
   onRevenueChange,
   onExpensesChange,
+  onIdecoChange,
 }: {
   result: TaxResult;
   expensesAssumed?: boolean;
   onRevenueChange?: (yen: number) => void;
   onExpensesChange?: (yen: number) => void;
+  onIdecoChange?: (monthlyYen: number) => void;
 }) {
   const r = result;
   const editable = Boolean(onRevenueChange && onExpensesChange);
+  const ideco = r.input.idecoMonthly;
+  // iDeCoの効き目 = 「掛金0円の自分」との差分。パネル表示用にだけ再計算する
+  const idecoBase = useMemo(
+    () => (ideco > 0 ? calculateTax({ ...r.input, idecoMonthly: 0 }) : null),
+    [r.input, ideco]
+  );
   const b = r.breakdown;
   const f = r.furusato;
   const paysPension = r.input.insurance !== 'dependent';
@@ -818,6 +829,96 @@ export function ResultPanel({
           )}
         </div>
 
+        {/* iDeCo(掛金スライダーで節税の効き目をその場で見る) */}
+        {onIdecoChange && (
+          <div className="mt-4 rounded-2xl bg-sky-50 px-4 py-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-bold text-sky-900">
+                🌱 iDeCoをやったら、どう変わる?
+              </span>
+              <span className="tabular shrink-0 whitespace-nowrap text-base font-semibold text-sky-900">
+                月{formatYen(ideco)}
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-sky-800/80">
+              掛金は全額が所得控除(小規模企業共済等掛金控除)。スライダーを動かすと、税金がいくら減るかその場でわかります。
+            </p>
+            <input
+              type="range"
+              min={0}
+              max={IDECO_MONTHLY_MAX}
+              step={1000}
+              value={ideco}
+              onChange={(e) => onIdecoChange(Number(e.target.value))}
+              aria-label="iDeCoの掛金(月額)"
+              className="mt-3 h-2 w-full cursor-pointer accent-sky-700"
+            />
+            <div className="flex justify-between text-[10px] text-sky-800/70">
+              <span>なし</span>
+              <span>
+                上限 月{(IDECO_MONTHLY_MAX / 10000).toLocaleString('ja-JP')}
+                万円
+              </span>
+            </div>
+
+            {ideco > 0 && idecoBase && (
+              <div className="mt-3 space-y-1.5 border-t border-sky-200 pt-3">
+                <div className="flex items-baseline justify-between gap-2 text-sm text-sky-900">
+                  <span>掛金(年間)</span>
+                  <span className="tabular">{formatYen(ideco * 12)}</span>
+                </div>
+                <div className="flex items-baseline justify-between gap-2 text-xs text-sky-800/90">
+                  <span>
+                    税の軽減(所得税{' '}
+                    {formatYen(idecoBase.incomeTax - r.incomeTax)} + 住民税{' '}
+                    {formatYen(idecoBase.residentTax - r.residentTax)})
+                  </span>
+                  <span className="tabular shrink-0">
+                    − {formatYen(idecoBase.taxTotal - r.taxTotal)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between gap-2 rounded-lg bg-sky-100 px-2 py-1.5 text-sm font-semibold text-sky-900">
+                  <span>手取りへの効果(年)</span>
+                  <span className="tabular">
+                    {r.takeHome >= idecoBase.takeHome ? '+' : '−'}
+                    {formatYen(Math.abs(r.takeHome - idecoBase.takeHome))}
+                  </span>
+                </div>
+                {idecoBase.taxTotal - r.taxTotal <= 0 ? (
+                  <p className="rounded-lg bg-white/70 px-2 py-1.5 text-[11px] leading-relaxed text-sky-800/90">
+                    💡
+                    いまの条件では税金がほぼ0円のため、節税の効き目は出ません(掛金は老後の積立としては有効です)。
+                  </p>
+                ) : (
+                  <p className="text-[11px] leading-relaxed text-sky-800/80">
+                    掛金そのものは消える支出ではなく、60歳まで引き出せない自分の老後資産。いま使えるお金の感覚では「掛金
+                    − 節税分」が積立に回るイメージです。
+                  </p>
+                )}
+                <ul className="space-y-0.5 text-[11px] leading-relaxed text-sky-800/70">
+                  <li>
+                    ・国民健康保険は下がりません(所得控除は国保の計算に効かないため)
+                  </li>
+                  {r.furusatoNozeiLimit !== idecoBase.furusatoNozeiLimit && (
+                    <li>
+                      ・課税所得が減るぶん、ふるさと納税の上限も
+                      {formatYen(
+                        idecoBase.furusatoNozeiLimit - r.furusatoNozeiLimit
+                      )}
+                      ほど下がります(上のパネルは反映済み)
+                    </li>
+                  )}
+                  <li>
+                    ・実際に加入できる掛金は月
+                    {IDECO_MONTHLY_MIN.toLocaleString('ja-JP')}
+                    円から1,000円単位です
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ▼ ここから詳しい内訳 */}
         <div className="mt-6 flex items-center justify-between border-t border-cream-200 pt-4">
           <p className="text-xs font-semibold text-ink-400">詳しい内訳</p>
@@ -851,7 +952,7 @@ export function ResultPanel({
             />
             <Row
               label="所得控除の合計"
-              hint="(基礎・社会保険・配偶者・扶養)"
+              hint={`(基礎・社会保険・配偶者・扶養${r.incomeTaxDeductions.ideco > 0 ? '・iDeCo' : ''})`}
               value={`− ${formatYen(r.incomeTaxDeductions.total)}`}
               detail={[
                 {
@@ -867,6 +968,14 @@ export function ResultPanel({
                   label: '社会保険料控除',
                   value: formatYen(r.incomeTaxDeductions.socialInsurance),
                 },
+                ...(r.incomeTaxDeductions.ideco > 0
+                  ? [
+                      {
+                        label: '小規模企業共済等掛金控除(iDeCo)',
+                        value: formatYen(r.incomeTaxDeductions.ideco),
+                      },
+                    ]
+                  : []),
                 {
                   label: '配偶者控除',
                   value: formatYen(r.incomeTaxDeductions.spouse),
@@ -957,6 +1066,14 @@ export function ResultPanel({
                   label: '− 社会保険料控除',
                   value: `− ${formatYen(r.residentTaxDeductions.socialInsurance)}`,
                 },
+                ...(r.residentTaxDeductions.ideco > 0
+                  ? [
+                      {
+                        label: '− iDeCo(小規模企業共済等掛金控除)',
+                        value: `− ${formatYen(r.residentTaxDeductions.ideco)}`,
+                      },
+                    ]
+                  : []),
                 ...(r.residentTaxDeductions.spouse > 0
                   ? [
                       {
