@@ -56,3 +56,92 @@ body {
 .rise-in {
   animation: rise-in 0.5s ease-out both;
 }
+
+/* 売上が空のまま計算ボタンを押したときの入力欄シェイク */
+@keyframes shake-x {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+.shake {
+  animation: shake-x 0.4s ease-in-out;
+}
+
+/* 手取りの増減バッジ(ふわっと出て、勝手に消える) */
+@keyframes delta-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.9);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.delta-pop {
+  animation: delta-pop 1.6s ease-out both;
+}
+
+/* スティッキーバーのすっと降りてくる表示 */
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.slide-down {
+  animation: slide-down 0.25s ease-out both;
+}
+
+/* 高さの開閉アニメーション(grid-template-rows トリック)。
+   閉時は visibility でタブ移動からも外す */
+.collapse-y {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+.collapse-y > * {
+  overflow: hidden;
+  min-height: 0;
+}
+.collapse-y.open {
+  grid-template-rows: 1fr;
+}
+
+/* チップ列の横スクロール(スクロールバーは出さない) */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shake,
+  .delta-pop,
+  .slide-down,
+  .rise-in {
+    animation: none;
+  }
+  .collapse-y {
+    transition: none;
+  }
+}
