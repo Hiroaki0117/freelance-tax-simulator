@@ -152,22 +152,19 @@ function Diagnosis({ result }: { result: TaxResult }) {
   if (r.takeHome < 0) {
     lines.push(
       <>
-        いまの条件では、経費と税・保険が売上を上回っています(手取り
+        手取りは
         <strong className="tabular text-ink-900">
-          −{man(Math.abs(r.takeHome))}万円
+          マイナス{man(Math.abs(r.takeHome))}万円
         </strong>
-        )。数字を見直してみてください。
+        (経費と税・保険が売上を上回っています)
       </>
     );
   } else {
     lines.push(
       <>
-        売上{man(r.input.revenue)}万円のうち、手取りは
-        <strong className="tabular text-ink-900">
-          {man(r.takeHome)}万円(
-          {takeRate}%)
-        </strong>
-        。
+        手取りは
+        <strong className="tabular text-ink-900">{man(r.takeHome)}万円</strong>
+        (売上{man(r.input.revenue)}万円の{takeRate}%)
       </>
     );
   }
@@ -175,11 +172,10 @@ function Diagnosis({ result }: { result: TaxResult }) {
   if (heaviest[1] > 0) {
     lines.push(
       <>
-        いちばん重いのは
+        いちばん重い負担は
         <strong className="tabular text-ink-900">
           {heaviest[0]}の{man(heaviest[1])}万円
         </strong>
-        。
       </>
     );
   }
@@ -190,26 +186,26 @@ function Diagnosis({ result }: { result: TaxResult }) {
         来年3月の確定申告で
         <strong className="tabular text-ink-900">
           約{man(marchLump)}万円の山
-        </strong>
-        が来ます。毎月
+        </strong>{' '}
+        → 毎月
         <strong className="tabular text-ink-900">
           {manShort(r.monthlyTaxReserve)}円
         </strong>
-        よけておけば慌てません。
+        よけておけば慌てません
       </>
     );
   } else if (r.residentTax > 0) {
     lines.push(
       <>
-        3月の納付はなし。山は来年6月からの住民税(1期あたり
+        3月の納付はなし。山は来年6月からの住民税(1期あたり 約
         <strong className="tabular text-ink-900">
-          約{man(Math.round(r.residentTax / 4))}万円
+          {man(Math.round(r.residentTax / 4))}万円
         </strong>
-        )です。
+        )
       </>
     );
   } else if (r.burdenTotal <= 0) {
-    lines.push(<>今回の条件では、税・保険の負担はほとんどありません。</>);
+    lines.push(<>今回の条件では、税・保険の負担はほとんどありません</>);
   }
 
   return (
@@ -220,10 +216,17 @@ function Diagnosis({ result }: { result: TaxResult }) {
         </span>
         ひとこと診断
       </p>
-      <ul className="mt-2 space-y-1">
+      <ul className="mt-2.5 space-y-1.5">
         {lines.map((l, i) => (
-          <li key={i} className="text-[13px] leading-relaxed text-ink-600">
-            {l}
+          <li
+            key={i}
+            className="flex gap-2 text-[13px] leading-relaxed text-ink-600"
+          >
+            <span
+              className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
+              aria-hidden
+            />
+            <span>{l}</span>
           </li>
         ))}
       </ul>
@@ -621,8 +624,8 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
 
   return (
     <div className="mt-3">
-      {/* レーン1:稼ぐ年 */}
-      <div className="rounded-2xl border border-emerald-100 bg-gradient-to-b from-emerald-50 to-white p-3.5">
+      {/* レーン1:稼ぐ年(フラットな薄緑。グラデは白カード内で滲んで見えるためやめた) */}
+      <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50 p-3.5">
         <div className="flex flex-wrap items-baseline gap-2">
           <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white">
             今年
@@ -635,7 +638,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
         </p>
 
         {/* 今年、毎月出ていくもの(年金は今年から。任意継続などの健保も今年) */}
-        <div className="mt-2.5 space-y-1 rounded-xl bg-white/70 px-3 py-2 text-xs">
+        <div className="mt-2.5 space-y-1 rounded-xl bg-white px-3 py-2 text-xs">
           {paysPensionThisYear ? (
             <div className="flex items-baseline justify-between gap-2 text-emerald-900">
               <span>国民年金(今年から毎月)</span>
@@ -689,8 +692,8 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
         </span>
       </div>
 
-      {/* レーン2:払う年 */}
-      <div className="rounded-2xl border border-amber-100 bg-gradient-to-b from-amber-50 to-white p-3.5">
+      {/* レーン2:払う年(レーン1に合わせてフラットに) */}
+      <div className="rounded-2xl border border-amber-200/70 bg-amber-50 p-3.5">
         <div className="flex flex-wrap items-baseline gap-2">
           <span className="rounded-full bg-amber-600 px-2 py-0.5 text-[11px] font-bold text-white">
             翌年3月〜翌々1月
