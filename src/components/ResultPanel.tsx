@@ -519,7 +519,9 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
       lab: '3月',
       yr: '翌年',
       items: kakutei,
-      kokuho: false,
+      // 国保の納付は6月〜翌3月(10期)が一般的。3月は前のサイクルの最終回が
+      // 重なる(収入が同水準なら額もほぼ同じなので、毎月ものとして見せる)
+      kokuho: isKokuho,
       big: kakutei.length > 0,
       note:
         kakutei.length > 0
@@ -607,7 +609,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
         juminInst > 0 ? [{ label: '住民税 4期(最終)', amount: juminInst }] : [],
       kokuho: isKokuho,
       big: false,
-      note: '住民税の最終回。ここで今年ぶんの精算がひと区切り。',
+      note: '住民税の最終回。ここで今年稼いだ分の精算がひと区切り。',
     },
     {
       lab: '2月',
@@ -690,7 +692,9 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
             翌年3月〜翌々2月
           </span>
           <span className="text-sm font-bold text-amber-800">払う年</span>
-          <span className="text-xs text-ink-500">今年ぶんの税・保険を精算</span>
+          <span className="text-xs text-ink-500">
+            今年稼いだ分の税・保険を精算
+          </span>
         </div>
 
         {/* 月バー(タップで内訳)。まとめて来る税(黄)+毎月の保険・年金(青)の積み上げ。
@@ -814,7 +818,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-2.5 w-2.5 rounded bg-sky-400" />
-            毎月の保険・年金(国保は6月〜)
+            毎月の保険・年金(国保は4・5月おやすみ)
           </span>
         </div>
       </div>
@@ -1143,7 +1147,7 @@ export function ResultPanel({
             <p className="text-[11px] text-ink-400">月をタップで内訳</p>
           </div>
           <p className="mb-1 mt-0.5 text-xs leading-relaxed text-ink-500">
-            今年かせいだ分の税・保険は、精算(支払い)が翌年から始まります。年金だけは今年から毎月。
+            今年稼いだ分の税・保険は、精算(支払い)が翌年から始まります。年金だけは今年から毎月。
           </p>
           <PaymentTimeline result={r} />
         </div>
