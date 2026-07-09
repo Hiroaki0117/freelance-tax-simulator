@@ -25,19 +25,11 @@ const MONTHLY_PRESETS = [400_000, 600_000, 800_000];
 /** 経費を自分で触るまでの仮置き比率 */
 const ASSUMED_EXPENSE_RATE = 0.2;
 
-export function Simulator({
-  initialInput,
-}: {
-  /** 共有リンク(?r=...)から復元された入力。渡された場合は最初から結果を表示する */
-  initialInput?: Partial<TaxInput>;
-}) {
-  const hasSharedInput = !!initialInput;
-  const [input, setInput] = useState<TaxInput>(
-    hasSharedInput ? { ...INITIAL_INPUT, ...initialInput } : INITIAL_INPUT
-  );
-  const [expensesTouched, setExpensesTouched] = useState(hasSharedInput);
+export function Simulator() {
+  const [input, setInput] = useState<TaxInput>(INITIAL_INPUT);
+  const [expensesTouched, setExpensesTouched] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [showResult, setShowResult] = useState(hasSharedInput);
+  const [showResult, setShowResult] = useState(false);
   // 売上の入れ方:年間まとめて or 月額単価×稼働月(SES/準委任は月単価で考える人が多い)
   const [revenueMode, setRevenueMode] = useState<'annual' | 'monthly'>(
     'annual'

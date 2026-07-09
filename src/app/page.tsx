@@ -1,59 +1,8 @@
-import type { Metadata } from 'next';
 import { Simulator } from '@/components/Simulator';
 import { ShareCta } from '@/components/ShareCta';
 import { DISCLAIMER_LONG } from '@/lib/disclaimer';
-import { calculateTax } from '@/lib/tax/calculator';
-import {
-  applyShareParams,
-  hasShareParams,
-  parseShareParams,
-} from '@/lib/tax/urlParams';
 
-type SearchParams = Record<string, string | string[] | undefined>;
-
-function toURLSearchParams(sp: SearchParams): URLSearchParams {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(sp)) {
-    if (typeof value === 'string') params.set(key, value);
-  }
-  return params;
-}
-
-export async function generateMetadata({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>;
-}): Promise<Metadata> {
-  const usp = toURLSearchParams(await searchParams);
-  if (!hasShareParams(usp)) return {};
-
-  const input = applyShareParams(parseShareParams(usp));
-  const result = calculateTax(input);
-  const title = `手取り${Math.round(result.takeHome / 10000).toLocaleString('ja-JP')}万円 — フリーランスの手取りざっくりシミュレーター`;
-  const description = `売上${Math.round(input.revenue / 10000).toLocaleString('ja-JP')}万円のフリーランスの手取りをざっくり試算。あなたの場合もリンクを開いてすぐ確認できます。`;
-  const ogImage = `/api/og?${usp.toString()}`;
-
-  return {
-    title,
-    description,
-    openGraph: { title, description, images: [ogImage] },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: [ogImage],
-    },
-  };
-}
-
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>;
-}) {
-  const usp = toURLSearchParams(await searchParams);
-  const initialInput = hasShareParams(usp) ? parseShareParams(usp) : undefined;
-
+export default function Home() {
   return (
     <main className="mx-auto max-w-xl px-5 py-10 sm:py-14">
       <header className="mb-7">
@@ -71,7 +20,7 @@ export default async function Home({
         </p>
       </header>
 
-      <Simulator initialInput={initialInput} />
+      <Simulator />
 
       <ShareCta />
 
