@@ -613,18 +613,22 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
 
   const lumpOf = (m: TimelineMonth) =>
     m.items.reduce((a, x) => a + x.amount, 0);
-  const maxLump = Math.max(1, ...months.map(lumpOf));
+  // 毎月もの(国保・国民年金)。年金は所得と関係なく毎月定額なので常に入れる。
+  // 棒グラフも「まとめて来る税+毎月もの」の積み上げにして、
+  // 静かな月(4月・5月など)にも青い土台が見えるようにする
+  const pensionMonthly = paysPensionThisYear ? NATIONAL_PENSION_MONTHLY : 0;
+  const baseOf = (m: TimelineMonth) =>
+    (m.kokuho ? healthMonthly : 0) + pensionMonthly;
+  const totalOf = (m: TimelineMonth) => lumpOf(m) + baseOf(m);
+  const maxTotal = Math.max(1, ...months.map(totalOf));
   const peak = months.reduce(
-    (best, m, i) => (lumpOf(m) > lumpOf(months[best]) ? i : best),
+    (best, m, i) => (totalOf(m) > totalOf(months[best]) ? i : best),
     0
   );
   const [selected, setSelected] = useState(peak);
   const sel = months[selected];
-  // 「この月に出ていくお金」= まとめて来る税 + 毎月もの(国保・国民年金)。
-  // 年金は所得と関係なく毎月定額なので、どの月にも常に入れる
-  const pensionMonthly = paysPensionThisYear ? NATIONAL_PENSION_MONTHLY : 0;
-  const selTotal =
-    lumpOf(sel) + (sel.kokuho ? healthMonthly : 0) + pensionMonthly;
+  // 「この月に出ていくお金」= まとめて来る税 + 毎月もの
+  const selTotal = totalOf(sel);
 
   return (
     <div className="mt-3">
@@ -682,12 +686,15 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
           <span className="text-xs text-ink-500">今年ぶんの税・保険を精算</span>
         </div>
 
-        {/* 月バー(タップで内訳) */}
+        {/* 月バー(タップで内訳)。まとめて来る税(黄)+毎月の保険・年金(青)の積み上げ */}
         <div className="mt-4 grid grid-cols-11 gap-1">
           {months.map((m, i) => {
             const isSel = i === selected;
             const l = lumpOf(m);
-            const h = l > 0 ? Math.max((l / maxLump) * 100, 8) : 5;
+            const base = baseOf(m);
+            const total = l + base;
+            const lumpH = l > 0 ? Math.max((l / maxTotal) * 100, 8) : 0;
+            const baseH = base > 0 ? Math.max((base / maxTotal) * 100, 7) : 0;
             return (
               <button
                 type="button"
@@ -698,21 +705,36 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
                 className="flex flex-col items-center gap-1"
               >
                 <div className="flex h-24 w-full flex-col items-center justify-end gap-0.5">
-                  <span className="h-3.5 whitespace-nowrap text-[11px] font-bold leading-none text-amber-700">
-                    {isSel && l > 0 ? `${man(l)}万` : ''}
+                  <span className="h-3.5 whitespace-nowrap text-[11px] font-bold leading-none text-ink-900">
+                    {isSel && total > 0 ? manShort(total) : ''}
                   </span>
-                  <div
-                    className={`w-full rounded-t-md transition-[height] duration-500 ${
-                      l <= 0
-                        ? 'bg-cream-200'
-                        : isSel
+                  {l > 0 && (
+                    <div
+                      className={`w-full rounded-t-md transition-[height] duration-500 ${
+                        isSel
                           ? 'bg-amber-600'
                           : m.big
                             ? 'bg-amber-500'
                             : 'bg-amber-300 hover:bg-amber-400'
-                    } ${m.kokuho ? 'shadow-[0_3px_0_#38bdf8]' : ''}`}
-                    style={{ height: `${h}%` }}
-                  />
+                      }`}
+                      style={{ height: `${lumpH}%` }}
+                    />
+                  )}
+                  {base > 0 ? (
+                    <div
+                      className={`w-full transition-[height] duration-500 ${
+                        l > 0 ? '' : 'rounded-t-md'
+                      } ${isSel ? 'bg-sky-500' : 'bg-sky-300 hover:bg-sky-400'}`}
+                      style={{ height: `${baseH}%` }}
+                    />
+                  ) : (
+                    l <= 0 && (
+                      <div
+                        className="w-full rounded-t-md bg-cream-200"
+                        style={{ height: '5%' }}
+                      />
+                    )
+                  )}
                 </div>
                 <span
                   className={`text-[11px] leading-none ${
@@ -784,7 +806,7 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-2.5 w-2.5 rounded bg-sky-400" />
-            国保(6月〜毎月)
+            毎月の保険・年金(国保は6月〜)
           </span>
         </div>
       </div>
