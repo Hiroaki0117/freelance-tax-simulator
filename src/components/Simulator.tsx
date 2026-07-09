@@ -25,11 +25,14 @@ const MONTHLY_PRESETS = [400_000, 600_000, 800_000];
 /** 経費を自分で触るまでの仮置き比率 */
 const ASSUMED_EXPENSE_RATE = 0.2;
 
-export function Simulator() {
-  const [input, setInput] = useState<TaxInput>(INITIAL_INPUT);
-  const [expensesTouched, setExpensesTouched] = useState(false);
+export function Simulator({ initialInput }: { initialInput?: TaxInput }) {
+  // 共有URL(/s?r=…)から来たときは、復元した入力で最初から結果を表示する
+  const [input, setInput] = useState<TaxInput>(initialInput ?? INITIAL_INPUT);
+  const [expensesTouched, setExpensesTouched] = useState(
+    Boolean(initialInput) // 共有リンクの経費は明示値なので、売上を動かしても仮置き比率で上書きしない
+  );
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [showResult, setShowResult] = useState(false);
+  const [showResult, setShowResult] = useState(Boolean(initialInput));
   // 売上の入れ方:年間まとめて or 月額単価×稼働月(SES/準委任は月単価で考える人が多い)
   const [revenueMode, setRevenueMode] = useState<'annual' | 'monthly'>(
     'annual'
@@ -49,6 +52,7 @@ export function Simulator() {
   const showingResult = showResult;
 
   // 「結果をみる」を押して結果が現れたら、そこまでスクロールする
+  // (共有URLから来た初回マウント時も同様に、結果まで自動スクロールする)
   useEffect(() => {
     if (showingResult) {
       resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
