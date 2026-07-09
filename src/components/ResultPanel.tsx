@@ -13,7 +13,6 @@ import {
 } from '@/lib/tax/constants';
 import { DISCLAIMER_SHORT } from '@/lib/disclaimer';
 import { ShareImageButton } from './ShareImageButton';
-import { ShareLinkButton } from './ShareLinkButton';
 import { ManInput } from './ManInput';
 
 interface DetailRow {
@@ -1715,7 +1714,6 @@ export function ResultPanel({
 
         {/* 結果を画像でシェア(バズ導線) */}
         <ShareImageButton result={r} />
-        <ShareLinkButton result={r} />
 
         <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
           ⚠️ {DISCLAIMER_SHORT}
