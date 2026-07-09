@@ -2,93 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import type { TaxResult } from '@/lib/tax/types';
-import { TAX_YEAR } from '@/lib/tax/constants';
 import { buildShareUrl, shareMessage, xIntentUrl } from '@/lib/share';
-
-const HANDLE = '@freelance_hiro';
-
-const C = {
-  bg: '#faf5ec',
-  card: '#ffffff',
-  ink900: '#3e3a33',
-  ink500: '#8a8377',
-  ink400: '#a79e8c',
-  emerald: '#059669',
-  emerald700: '#047857',
-  expense: '#e0d6bf',
-  tax: '#fbbf24',
-  insurance: '#0ea5e9', // 画面の内訳バーと同じ(税金のamberと色覚でも区別できる青系)
-  takeHome: '#059669',
-};
-
-const FONT =
-  "system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif";
-
-function man(v: number): string {
-  return Math.round(v / 10000).toLocaleString('ja-JP');
-}
-
-/** 結果を 1080×1080 のシェア用カード(SVG文字列)にする */
-function buildSvg(r: TaxResult): string {
-  const rev = man(r.input.revenue);
-  const rate = Math.round((r.burdenTotal / r.input.revenue) * 100);
-  const takeRate = Math.round((r.takeHome / r.input.revenue) * 100);
-
-  const segs = [
-    { label: '経費', value: r.input.expenses, color: C.expense },
-    { label: '税金', value: r.taxTotal, color: C.tax },
-    { label: '保険', value: r.socialInsuranceTotal, color: C.insurance },
-    { label: '手取り', value: r.takeHome, color: C.takeHome },
-  ];
-  const total = segs.reduce((a, s) => a + Math.max(0, s.value), 0) || 1;
-  const barX = 108;
-  const barW = 864;
-  const barY = 690;
-  const barH = 60;
-  let cx = barX;
-  const bars = segs
-    .map((s) => {
-      const w = (Math.max(0, s.value) / total) * barW;
-      const rect = `<rect x="${cx.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barH}" fill="${s.color}"/>`;
-      cx += w;
-      return rect;
-    })
-    .join('');
-
-  const legend = segs
-    .map((s, i) => {
-      const x = barX + i * 216;
-      return `
-        <rect x="${x}" y="800" width="22" height="22" rx="5" fill="${s.color}"/>
-        <text x="${x + 34}" y="818" font-size="30" fill="${C.ink500}">${s.label}</text>
-        <text x="${x}" y="866" font-size="44" font-weight="700" fill="${C.ink900}">${man(s.value)}万</text>`;
-    })
-    .join('');
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080" font-family="${FONT}">
-    <rect width="1080" height="1080" fill="${C.bg}"/>
-    <rect x="48" y="48" width="984" height="984" rx="56" fill="${C.card}"/>
-    <text x="108" y="158" font-size="34" font-weight="700" fill="${C.ink500}">フリーランスの手取りざっくりシミュレーター</text>
-
-    <text x="108" y="300" font-size="44" font-weight="700" fill="${C.ink900}">手取り(年)</text>
-    <text x="972" y="298" font-size="30" fill="${C.ink400}" text-anchor="end">令和7年(${TAX_YEAR}年)分</text>
-
-    <text x="108" y="530">
-      <tspan font-size="220" font-weight="800" fill="${C.emerald}">${man(r.takeHome)}</tspan><tspan font-size="84" font-weight="700" fill="${C.emerald}" dx="10">万円</tspan>
-    </text>
-    <text x="972" y="452" font-size="34" fill="${C.ink500}" text-anchor="end">手取り率</text>
-    <text x="972" y="520" font-size="72" font-weight="800" fill="${C.emerald700}" text-anchor="end">${takeRate}%</text>
-
-    <text x="108" y="628" font-size="38" fill="${C.ink500}">売上${rev}万円のうち、税・保険で ${man(r.burdenTotal)}万円(${rate}%)</text>
-
-    <clipPath id="bar"><rect x="${barX}" y="${barY}" width="${barW}" height="${barH}" rx="18"/></clipPath>
-    <g clip-path="url(#bar)">${bars}</g>
-    ${legend}
-
-    <text x="108" y="958" font-size="30" fill="${C.ink400}">freelance-tedori.com</text>
-    <text x="972" y="958" font-size="34" font-weight="700" fill="${C.emerald700}" text-anchor="end">${HANDLE}</text>
-  </svg>`;
-}
+import { buildShareSvg, type ShareVariant } from '@/lib/shareImage';
 
 /** SVG文字列を PNG Blob にする(純SVG textなので canvas は汚染されない) */
 function svgToPng(svg: string): Promise<Blob> {
@@ -122,14 +37,23 @@ function svgToPng(svg: string): Promise<Blob> {
   });
 }
 
-export function ShareImageButton({ result }: { result: TaxResult }) {
+export function ShareImageButton({
+  result,
+  variant,
+}: {
+  result: TaxResult;
+  variant: ShareVariant;
+}) {
+  // 選択中のバリアント + 結果が変われば画像を作り直す
   const sig = [
+    variant,
     result.input.revenue,
     result.input.expenses,
     result.takeHome,
     result.burdenTotal,
     result.taxTotal,
     result.socialInsuranceTotal,
+    result.monthlyTaxReserve,
   ].join('|');
   const [ready, setReady] = useState<{ sig: string; file: File } | null>(null);
 
@@ -139,9 +63,9 @@ export function ShareImageButton({ result }: { result: TaxResult }) {
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
-        const blob = await svgToPng(buildSvg(result));
+        const blob = await svgToPng(buildShareSvg(result, variant));
         if (!cancelled) {
-          const file = new File([blob], 'tedori-result.png', {
+          const file = new File([blob], `tedori-${variant}.png`, {
             type: 'image/png',
           });
           setReady({ sig, file });
@@ -149,12 +73,12 @@ export function ShareImageButton({ result }: { result: TaxResult }) {
       } catch {
         // 生成に失敗しても致命的ではない(ボタンは準備中のまま)
       }
-    }, 250);
+    }, 200);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-    // sig は buildSvg が使う値をすべて含むので deps は sig のみで十分
+    // sig は buildShareSvg が使う値をすべて含むので deps は sig のみで十分
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig]);
 
@@ -162,7 +86,7 @@ export function ShareImageButton({ result }: { result: TaxResult }) {
 
   function handle() {
     if (!file) return;
-    const text = shareMessage(result);
+    const text = shareMessage(result, variant);
     // 画像といっしょに、この結果を再現できるリンクも渡す(開いた人の追体験導線)
     const shareUrl = buildShareUrl(result);
     const nav = navigator as Navigator & {
@@ -179,7 +103,7 @@ export function ShareImageButton({ result }: { result: TaxResult }) {
     const url = URL.createObjectURL(file);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'tedori-result.png';
+    a.download = `tedori-${variant}.png`;
     document.body.appendChild(a);
     a.click();
     a.remove();
