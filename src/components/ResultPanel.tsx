@@ -609,6 +609,13 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
       big: false,
       note: '住民税の最終回。ここで今年ぶんの精算がひと区切り。',
     },
+    {
+      lab: '2月',
+      items: [],
+      kokuho: isKokuho,
+      big: false,
+      note: '毎月の保険・年金のみ。3月にはまた次の年の確定申告が来て、1年がひと回りします。',
+    },
   ];
 
   const lumpOf = (m: TimelineMonth) =>
@@ -680,14 +687,15 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
       <div className="rounded-2xl border border-amber-200/70 bg-amber-50 p-3.5">
         <div className="flex flex-wrap items-baseline gap-2">
           <span className="rounded-full bg-amber-600 px-2 py-0.5 text-[11px] font-bold text-white">
-            翌年3月〜翌々1月
+            翌年3月〜翌々2月
           </span>
           <span className="text-sm font-bold text-amber-800">払う年</span>
           <span className="text-xs text-ink-500">今年ぶんの税・保険を精算</span>
         </div>
 
-        {/* 月バー(タップで内訳)。まとめて来る税(黄)+毎月の保険・年金(青)の積み上げ */}
-        <div className="mt-4 grid grid-cols-11 gap-1">
+        {/* 月バー(タップで内訳)。まとめて来る税(黄)+毎月の保険・年金(青)の積み上げ。
+            3月〜翌々2月のちょうど12ヶ月で1サイクル */}
+        <div className="mt-4 grid grid-cols-12 gap-1">
           {months.map((m, i) => {
             const isSel = i === selected;
             const l = lumpOf(m);
