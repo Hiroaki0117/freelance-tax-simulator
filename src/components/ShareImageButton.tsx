@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import type { TaxResult } from '@/lib/tax/types';
 import { TAX_YEAR } from '@/lib/tax/constants';
+import { buildShareUrl, shareMessage, xIntentUrl } from '@/lib/share';
 
-const SHARE_URL = 'https://freelance-tedori.com';
 const HANDLE = '@freelance_hiro';
 
 const C = {
@@ -122,19 +122,6 @@ function svgToPng(svg: string): Promise<Blob> {
   });
 }
 
-const SHARE_MESSAGE = (r: TaxResult) =>
-  `売上${man(r.input.revenue)}万のフリーランス、手取りは${man(r.takeHome)}万でした。\n` +
-  `税金と保険で${man(r.burdenTotal)}万(売上の${Math.round((r.burdenTotal / r.input.revenue) * 100)}%)😇\n` +
-  `あなたはいくら残る?👇`;
-
-function xIntentUrl(r: TaxResult): string {
-  return `https://x.com/intent/post?${new URLSearchParams({
-    text: SHARE_MESSAGE(r),
-    url: SHARE_URL,
-    hashtags: 'フリーランス,確定申告',
-  }).toString()}`;
-}
-
 export function ShareImageButton({ result }: { result: TaxResult }) {
   const sig = [
     result.input.revenue,
@@ -175,12 +162,17 @@ export function ShareImageButton({ result }: { result: TaxResult }) {
 
   function handle() {
     if (!file) return;
+    const text = shareMessage(result);
+    // 画像といっしょに、この結果を再現できるリンクも渡す(開いた人の追体験導線)
+    const shareUrl = buildShareUrl(result);
     const nav = navigator as Navigator & {
       canShare?: (data?: ShareData) => boolean;
     };
     // モバイル等:画像つきネイティブ共有(Xアプリなどに直接)
     if (nav.canShare?.({ files: [file] })) {
-      nav.share({ files: [file], text: SHARE_MESSAGE(result) }).catch(() => {});
+      nav
+        .share({ files: [file], text: `${text}\n${shareUrl}` })
+        .catch(() => {});
       return;
     }
     // PC等:PNGをダウンロード → X投稿画面を開いて添付してもらう
@@ -192,22 +184,17 @@ export function ShareImageButton({ result }: { result: TaxResult }) {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    window.open(xIntentUrl(result), '_blank', 'noopener,noreferrer');
+    window.open(xIntentUrl(text, shareUrl), '_blank', 'noopener,noreferrer');
   }
 
   return (
-    <div className="mt-5 rounded-2xl bg-emerald-50 p-4 text-center">
-      <p className="text-sm font-bold text-emerald-900">
-        この結果、画像でシェアできます
-      </p>
-      <button
-        type="button"
-        onClick={handle}
-        disabled={!file}
-        className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-[0_6px_14px_rgba(5,150,105,0.28)] transition-colors hover:bg-emerald-700 disabled:opacity-60"
-      >
-        {file ? '📸 結果をシェアする' : '画像を準備中…'}
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={handle}
+      disabled={!file}
+      className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-[0_6px_14px_rgba(5,150,105,0.28)] transition-colors hover:bg-emerald-700 disabled:opacity-60"
+    >
+      {file ? '📸 画像でシェア' : '画像を準備中…'}
+    </button>
   );
 }
