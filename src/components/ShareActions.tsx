@@ -2,6 +2,8 @@
 
 // 結果のシェアパネル(画像でシェア+リンクでシェア)
 //
+// 画像でシェア:
+// - 感情別に3種の画像から選べる(自慢 / 共感 / 備え・UX案 4-6)。選んだ型のプレビューを表示
 // リンクでシェア:
 // - 押した瞬間にだけ共有URL(/s?r=…)を組み立てる(自動でURLを書き換えない)
 // - モバイル等はネイティブ共有シート、それ以外はクリップボードにコピー
@@ -10,6 +12,11 @@
 import { useState } from 'react';
 import type { TaxResult } from '@/lib/tax/types';
 import { buildShareUrl, shareMessage, xIntentUrl } from '@/lib/share';
+import {
+  SHARE_VARIANTS,
+  shareSvgDataUrl,
+  type ShareVariant,
+} from '@/lib/shareImage';
 import { ShareImageButton } from './ShareImageButton';
 
 type CopiedState = {
@@ -20,6 +27,7 @@ type CopiedState = {
 } | null;
 
 export function ShareActions({ result }: { result: TaxResult }) {
+  const [variant, setVariant] = useState<ShareVariant>('brag');
   const [copiedState, setCopied] = useState<CopiedState>(null);
 
   // 結果が変わったら、古いリンクのコピー済み表示は下げる
@@ -29,7 +37,7 @@ export function ShareActions({ result }: { result: TaxResult }) {
 
   async function handleLinkShare() {
     const url = buildShareUrl(result);
-    const text = shareMessage(result);
+    const text = shareMessage(result, variant);
     const nav = navigator as Navigator & {
       canShare?: (data?: ShareData) => boolean;
     };
@@ -54,8 +62,45 @@ export function ShareActions({ result }: { result: TaxResult }) {
       <p className="text-sm font-bold text-emerald-900">
         この結果、シェアできます
       </p>
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-        <ShareImageButton result={result} />
+
+      {/* 画像のタイプを選ぶ(感情別3種) */}
+      <div
+        className="mt-3 flex justify-center gap-1.5 rounded-full bg-white/70 p-1"
+        role="group"
+        aria-label="シェア画像のタイプ"
+      >
+        {SHARE_VARIANTS.map((v) => (
+          <button
+            key={v.key}
+            type="button"
+            onClick={() => setVariant(v.key)}
+            aria-pressed={variant === v.key}
+            className={`flex-1 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+              variant === v.key
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-ink-500 hover:text-emerald-700'
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1.5 text-xs text-emerald-900/60">
+        {SHARE_VARIANTS.find((v) => v.key === variant)?.hint}
+      </p>
+
+      {/* 選んだ画像のプレビュー(実際に共有される絵) */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={shareSvgDataUrl(result, variant)}
+        alt={`シェア画像プレビュー(${variant})`}
+        width={1080}
+        height={1080}
+        className="mx-auto mt-3 w-full max-w-[300px] rounded-xl border border-emerald-100 shadow-sm"
+      />
+
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+        <ShareImageButton result={result} variant={variant} />
         <button
           type="button"
           onClick={handleLinkShare}
