@@ -620,7 +620,11 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
   );
   const [selected, setSelected] = useState(peak);
   const sel = months[selected];
-  const selTotal = lumpOf(sel) + (sel.kokuho ? healthMonthly : 0);
+  // 「この月に出ていくお金」= まとめて来る税 + 毎月もの(国保・国民年金)。
+  // 年金は所得と関係なく毎月定額なので、どの月にも常に入れる
+  const pensionMonthly = paysPensionThisYear ? NATIONAL_PENSION_MONTHLY : 0;
+  const selTotal =
+    lumpOf(sel) + (sel.kokuho ? healthMonthly : 0) + pensionMonthly;
 
   return (
     <div className="mt-3">
@@ -636,30 +640,6 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
         <p className="mt-2.5 text-[13px] font-semibold leading-relaxed text-emerald-950">
           働いて得た所得で、翌年の税額が決まる年。ふるさと納税をするなら、この年のうちに。
         </p>
-
-        {/* 今年、毎月出ていくもの(年金は今年から。任意継続などの健保も今年) */}
-        <div className="mt-2.5 space-y-1 rounded-xl bg-white px-3 py-2 text-xs">
-          {paysPensionThisYear ? (
-            <div className="flex items-baseline justify-between gap-2 text-emerald-900">
-              <span>国民年金(今年から毎月)</span>
-              <span className="tabular shrink-0">
-                月 {formatYen(NATIONAL_PENSION_MONTHLY)}
-              </span>
-            </div>
-          ) : (
-            <p className="leading-relaxed text-emerald-900/80">
-              扶養内のため、毎月の年金・健保の自己負担はありません。
-            </p>
-          )}
-          {!isKokuho && paysPensionThisYear && r.healthInsurance > 0 && (
-            <div className="flex items-baseline justify-between gap-2 text-emerald-900">
-              <span>健康保険(任意継続など・毎月)</span>
-              <span className="tabular shrink-0">
-                月 約{formatYen(healthMonthly)}
-              </span>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* 受け渡し:稼ぐ(緑) → 払う(オレンジ)のズレを橋渡し */}
@@ -769,6 +749,12 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
               <div className="flex items-baseline justify-between gap-2 text-sky-700">
                 <span>国民健康保険(毎月)</span>
                 <span className="tabular">約 {formatYen(healthMonthly)}</span>
+              </div>
+            )}
+            {pensionMonthly > 0 && (
+              <div className="flex items-baseline justify-between gap-2 text-sky-700">
+                <span>国民年金(毎月)</span>
+                <span className="tabular">{formatYen(pensionMonthly)}</span>
               </div>
             )}
             {selTotal > 0 ? (
