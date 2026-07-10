@@ -997,11 +997,11 @@ function IcsDownloadButton({ result }: { result: TaxResult }) {
         onClick={download}
         className="flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-emerald-500 bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50"
       >
-        📅 納税予定をカレンダーに追加(.ics)
+        📅 納税予定をスマホのカレンダーに入れる
       </button>
       <p className="mt-1.5 text-center text-[11px] leading-relaxed text-ink-400">
-        {deadlines.length}件の納付期限（＋3日前リマインダ)をGoogle
-        カレンダー・iPhoneに取り込めます。金額・期限は概算。
+        確定申告・住民税などの納付日{deadlines.length}件を Google カレンダー /
+        iPhone に登録(3日前にお知らせ)。金額・日付は概算です。
       </p>
     </div>
   );
