@@ -9,7 +9,7 @@
 // - モバイル等はネイティブ共有シート、それ以外はクリップボードにコピー
 //   +「そのままXでポストする」導線(リンクカードに結果入りOGP画像が出る)
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TaxResult } from '@/lib/tax/types';
 import { buildShareUrl, shareMessage, xIntentUrl } from '@/lib/share';
 import {
@@ -26,9 +26,29 @@ type CopiedState = {
   ok: boolean;
 } | null;
 
-export function ShareActions({ result }: { result: TaxResult }) {
-  const [variant, setVariant] = useState<ShareVariant>('brag');
+export function ShareActions({
+  result,
+  heroMode = 'takeHome',
+}: {
+  result: TaxResult;
+  /** 反転モード(UX案 5-1)と連動:取られた額モードなら共感型の画像を既定にする */
+  heroMode?: 'takeHome' | 'burden';
+}) {
+  const [variant, setVariant] = useState<ShareVariant>(
+    heroMode === 'burden' ? 'empathy' : 'brag'
+  );
   const [copiedState, setCopied] = useState<CopiedState>(null);
+
+  // ヒーローのトグルが切り替わったら、シェア画像もその感情に寄せる。
+  // (初回マウントでは既定値のままにし、ユーザーの手動選択は次のトグルまで尊重する)
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
+    setVariant(heroMode === 'burden' ? 'empathy' : 'brag');
+  }, [heroMode]);
 
   // 結果が変わったら、古いリンクのコピー済み表示は下げる
   // (どの入力に対するコピーだったかを sig で照合する)
