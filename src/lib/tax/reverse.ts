@@ -79,9 +79,10 @@ export function solveRevenueForTakeHome(
     else lo = mid;
   }
 
-  // 確定した売上に対して、表示・適用と同じ丸めた経費で手取りを出し直す
-  // (「この売上で試算する」で本体に適用したときの数字と一致させる)
-  const revenue = hi;
+  // 必要売上は1万円単位に丸めて「見やすい額」にする(例: 626.6万 → 627万)。
+  // 表示・適用・その売上での手取りを、すべてこの丸めた売上に揃える
+  // (「この売上で試算する」で本体に入れたとき、入力欄も 627 と表示される)。
+  const revenue = Math.round(hi / 10000) * 10000;
   const expenses = expensesAssumed ? assumedExpenses(revenue) : base.expenses;
   const takeHome = calculateTax({ ...base, revenue, expenses }).takeHome;
   return { revenue, expenses, takeHome, reachable: true };
