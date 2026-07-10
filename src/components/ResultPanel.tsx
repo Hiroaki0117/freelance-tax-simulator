@@ -101,20 +101,24 @@ function fmtDelta(yen: number): string {
   return `${sign}${abs.toLocaleString('ja-JP')}円`;
 }
 
-/** 手取りの増減バッジ(CSSアニメーションで勝手に消える) */
+/** 手取りの増減バッジ(CSSアニメーションで勝手に消える)。
+    positiveIsGood=false のとき(反転モードの「取られた額」など)は増=悪で色を反転 */
 function DeltaBadge({
   delta,
   small,
+  positiveIsGood = true,
 }: {
   delta: { amount: number; id: number } | null;
   small?: boolean;
+  positiveIsGood?: boolean;
 }) {
   if (!delta || delta.amount === 0) return null;
+  const good = delta.amount > 0 === positiveIsGood;
   return (
     <span
       key={delta.id}
       className={`delta-pop tabular inline-block rounded-full bg-white/95 font-bold shadow-sm ${
-        delta.amount > 0 ? 'text-emerald-700' : 'text-rose-600'
+        good ? 'text-emerald-700' : 'text-rose-600'
       } ${small ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm'}`}
       role="status"
     >
@@ -789,11 +793,61 @@ export function ResultPanel({
   const f = r.furusato;
   const paysPension = r.input.insurance !== 'dependent';
   const takeHomeRate = r.input.revenue > 0 ? r.takeHome / r.input.revenue : 0;
+  const burdenRate = r.input.revenue > 0 ? r.burdenTotal / r.input.revenue : 0;
 
-  // 手取りはカウントアップで追いかけ、変化した瞬間は増減バッジで見せる
+  // 反転モード:ヒーローの主役を「手取り」↔「税・保険で取られた額」で切替(UX案 5-1)
+  const [heroMode, setHeroMode] = useState<'takeHome' | 'burden'>('takeHome');
+  const inverted = heroMode === 'burden';
+
+  // 手取り/取られた額はカウントアップで追いかけ、変化した瞬間は増減バッジで見せる
   const takeHomeAnimated = useAnimatedNumber(r.takeHome);
   const monthlyAnimated = useAnimatedNumber(r.monthlyTakeHome);
   const takeHomeDelta = useDelta(r.takeHome);
+  const burdenAnimated = useAnimatedNumber(r.burdenTotal);
+  const monthlyBurdenAnimated = useAnimatedNumber(r.burdenTotal / 12);
+  const burdenDelta = useDelta(r.burdenTotal);
+
+  // モードごとのヒーロー表示(色・ラベル・数字・割合)。sticky バーと共有する
+  // 色つきクラスは Tailwind が拾えるよう「完全な文字列リテラル」で持つ(動的連結しない)
+  const hero = inverted
+    ? {
+        gradient: 'from-amber-500 to-amber-600',
+        stickyBg: 'bg-amber-600/95',
+        stickyShadow: 'shadow-[0_4px_14px_rgba(217,119,6,0.35)]',
+        subtle: 'text-amber-50',
+        subtle90: 'text-amber-50/90',
+        subtle80: 'text-amber-50/80',
+        eyebrow: '税・社会保険で(年)',
+        big: burdenAnimated,
+        exactYen: r.burdenTotal,
+        delta: burdenDelta,
+        positiveIsGood: false,
+        stat1Label: '月あたり',
+        stat1: monthlyBurdenAnimated,
+        stat2Label: '売上のうち出ていく割合',
+        rate: burdenRate,
+        stickyLabel: '取られた(年)',
+        rateWord: '出ていく',
+      }
+    : {
+        gradient: 'from-emerald-500 to-emerald-600',
+        stickyBg: 'bg-emerald-600/95',
+        stickyShadow: 'shadow-[0_4px_14px_rgba(5,150,105,0.35)]',
+        subtle: 'text-emerald-50',
+        subtle90: 'text-emerald-50/90',
+        subtle80: 'text-emerald-50/80',
+        eyebrow: 'あなたの手取り(年)',
+        big: takeHomeAnimated,
+        exactYen: r.takeHome,
+        delta: takeHomeDelta,
+        positiveIsGood: true,
+        stat1Label: '月あたりの手取り',
+        stat1: monthlyAnimated,
+        stat2Label: '売上のうち残る割合',
+        rate: takeHomeRate,
+        stickyLabel: '手取り(年)',
+        rateWord: '残る',
+      };
 
   // ヒーローを上に通り過ぎたら、手取りのミニバーを貼り付ける。
   // IntersectionObserver は瞬間ジャンプ(非交差→非交差)で発火しないことが
@@ -830,7 +884,9 @@ export function ResultPanel({
           祖先の transform(rise-in)の影響で fixed の基準がずれないよう body 直下へ */}
       {stuck &&
         createPortal(
-          <div className="slide-down fixed inset-x-0 top-0 z-40 bg-emerald-600/95 text-white shadow-[0_4px_14px_rgba(5,150,105,0.35)] backdrop-blur">
+          <div
+            className={`slide-down fixed inset-x-0 top-0 z-40 ${hero.stickyBg} text-white ${hero.stickyShadow} backdrop-blur`}
+          >
             <button
               type="button"
               aria-label="結果の先頭に戻る"
@@ -843,59 +899,90 @@ export function ResultPanel({
               className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 px-5 py-2.5 text-left"
             >
               <span className="flex items-baseline gap-1.5">
-                <span className="text-xs font-medium text-emerald-50">
-                  手取り(年)
+                <span className={`text-xs font-medium ${hero.subtle}`}>
+                  {hero.stickyLabel}
                 </span>
                 <span className="tabular text-lg font-extrabold leading-none">
-                  {man(takeHomeAnimated)}万円
+                  {man(hero.big)}万円
                 </span>
-                {takeHomeRate > 0 && (
-                  <span className="tabular text-xs text-emerald-50/90">
-                    残る{formatPercent(takeHomeRate, 0)}
+                {hero.rate > 0 && (
+                  <span className={`tabular text-xs ${hero.subtle90}`}>
+                    {hero.rateWord}
+                    {formatPercent(hero.rate, 0)}
                   </span>
                 )}
               </span>
               <span className="flex shrink-0 items-center gap-2">
-                <DeltaBadge delta={takeHomeDelta} small />
-                <span className="text-xs text-emerald-50/80">▲ 先頭へ</span>
+                <DeltaBadge
+                  delta={hero.delta}
+                  small
+                  positiveIsGood={hero.positiveIsGood}
+                />
+                <span className={`text-xs ${hero.subtle80}`}>▲ 先頭へ</span>
               </span>
             </button>
           </div>,
           document.body
         )}
 
-      {/* 手取り(主役)— 色つきヒーローヘッダー */}
+      {/* 主役(手取り / 取られた額)— 色つきヒーローヘッダー。反転トグルで切替(UX案 5-1) */}
       <div
         ref={heroRef}
-        className="relative scroll-mt-4 bg-gradient-to-br from-emerald-500 to-emerald-600 px-6 pb-6 pt-7 text-white"
+        className={`relative scroll-mt-4 bg-gradient-to-br ${hero.gradient} px-6 pb-6 pt-6 text-white`}
       >
-        <p className="text-sm font-medium text-emerald-50">
-          あなたの手取り(年)
-        </p>
+        {/* 反転トグル:主役を「手取り」↔「取られた額」で切替 */}
+        <div
+          className="mb-3 inline-flex rounded-full bg-black/15 p-0.5 text-xs font-bold"
+          role="group"
+          aria-label="主役の表示を切替"
+        >
+          <button
+            type="button"
+            onClick={() => setHeroMode('takeHome')}
+            aria-pressed={!inverted}
+            className={`rounded-full px-3 py-1 transition-colors ${
+              inverted ? 'text-white/85 hover:text-white' : 'bg-white text-emerald-700'
+            }`}
+          >
+            手取り
+          </button>
+          <button
+            type="button"
+            onClick={() => setHeroMode('burden')}
+            aria-pressed={inverted}
+            className={`rounded-full px-3 py-1 transition-colors ${
+              inverted ? 'bg-white text-amber-700' : 'text-white/85 hover:text-white'
+            }`}
+          >
+            取られた額
+          </button>
+        </div>
+
+        <p className={`text-sm font-medium ${hero.subtle}`}>{hero.eyebrow}</p>
         <p className="mt-1.5 flex flex-wrap items-baseline gap-1.5">
           <span className="tabular text-[3.25rem] font-extrabold leading-[0.9] tracking-tight">
-            {man(takeHomeAnimated)}
+            {man(hero.big)}
           </span>
           <span className="text-xl font-bold">万円</span>
           <span className="tabular ml-1 text-sm font-normal text-white/95">
-            ({formatYen(r.takeHome)})
+            ({formatYen(hero.exactYen)})
           </span>
-          <DeltaBadge delta={takeHomeDelta} />
+          <DeltaBadge delta={hero.delta} positiveIsGood={hero.positiveIsGood} />
         </p>
 
-        {/* 月あたり・残る割合(自分ごとに響く2つ) */}
+        {/* 月あたり・割合(自分ごとに響く2つ) */}
         <div className="mt-5 grid grid-cols-2 gap-2.5">
           <div className="rounded-2xl bg-white/15 px-3.5 py-2.5">
-            <p className="text-xs text-emerald-50/90">月あたりの手取り</p>
+            <p className={`text-xs ${hero.subtle90}`}>{hero.stat1Label}</p>
             <p className="tabular mt-0.5 text-xl font-bold leading-none">
-              約{man(monthlyAnimated)}
+              約{man(hero.stat1)}
               <span className="ml-0.5 text-xs font-semibold">万円</span>
             </p>
           </div>
           <div className="rounded-2xl bg-white/15 px-3.5 py-2.5">
-            <p className="text-xs text-emerald-50/90">売上のうち残る割合</p>
+            <p className={`text-xs ${hero.subtle90}`}>{hero.stat2Label}</p>
             <p className="tabular mt-0.5 text-xl font-bold leading-none">
-              {formatPercent(takeHomeRate, 0)}
+              {formatPercent(hero.rate, 0)}
             </p>
           </div>
         </div>
@@ -1620,7 +1707,7 @@ export function ResultPanel({
         </div>
 
         {/* 結果をシェア(画像+リンク再現・バズ導線) */}
-        <ShareActions result={r} />
+        <ShareActions result={r} heroMode={heroMode} />
 
         <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
           ⚠️ {DISCLAIMER_SHORT}
