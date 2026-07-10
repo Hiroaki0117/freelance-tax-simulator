@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { calculateTax } from '@/lib/tax/calculator';
-import { DEFAULT_INPUT } from '@/lib/tax/defaults';
+import { DEFAULT_INPUT, assumedExpenses } from '@/lib/tax/defaults';
 import { TAX_YEAR } from '@/lib/tax/constants';
 import type { TaxInput } from '@/lib/tax/types';
 import {
@@ -21,9 +21,6 @@ const REVENUE_PRESETS = [4_000_000, 6_000_000, 8_000_000];
 
 /** 月額モードのプリセット(月額・円) */
 const MONTHLY_PRESETS = [400_000, 600_000, 800_000];
-
-/** 経費を自分で触るまでの仮置き比率 */
-const ASSUMED_EXPENSE_RATE = 0.2;
 
 export function Simulator({ initialInput }: { initialInput?: TaxInput }) {
   // 共有URL(/s?r=…)から来たときは、復元した入力で最初から結果を表示する
@@ -66,9 +63,7 @@ export function Simulator({ initialInput }: { initialInput?: TaxInput }) {
     setInput((prev) => ({
       ...prev,
       revenue,
-      expenses: expensesTouched
-        ? prev.expenses
-        : Math.round((revenue * ASSUMED_EXPENSE_RATE) / 10000) * 10000,
+      expenses: expensesTouched ? prev.expenses : assumedExpenses(revenue),
     }));
   }
 
