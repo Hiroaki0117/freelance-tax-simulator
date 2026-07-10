@@ -14,6 +14,7 @@ import {
 import { DISCLAIMER_SHORT } from '@/lib/disclaimer';
 import { ShareActions } from './ShareActions';
 import { ManInput } from './ManInput';
+import { SankeyDiagram } from './SankeyDiagram';
 
 interface DetailRow {
   label: string;
@@ -407,71 +408,6 @@ function Row({
         </span>
       </button>
       {open && <Detail rows={detail} />}
-    </div>
-  );
-}
-
-/** 売上がどう分かれるかの積み上げバー(各区分をバー内＋真下ラベルで一目に) */
-function BreakdownBar({
-  segments,
-}: {
-  segments: {
-    label: string;
-    value: number;
-    color: string;
-    text: string; // バー内・ドットの文字色に対する見やすさ用のテキスト色
-  }[];
-}) {
-  const total = segments.reduce((a, s) => a + Math.max(0, s.value), 0);
-  if (total <= 0) return null;
-  const pct = (v: number) => (Math.max(0, v) / total) * 100;
-  return (
-    <div>
-      {/* バー本体:幅のある区分は中に「名前＋割合」を表示。
-          区分の境目は白の細い隙間で(色の近さに頼らず判別できるように) */}
-      <div className="flex h-12 gap-[2px] overflow-hidden rounded-xl">
-        {segments.map((s) => {
-          const p = pct(s.value);
-          return (
-            <div
-              key={s.label}
-              className={`${s.color} flex flex-col items-center justify-center overflow-hidden leading-none transition-[width] duration-500`}
-              style={{ width: `${p}%` }}
-              title={`${s.label} ${formatYen(s.value)}`}
-            >
-              {p >= 12 && (
-                <>
-                  <span
-                    className={`truncate px-1 text-[11px] font-semibold ${s.text}`}
-                  >
-                    {s.label}
-                  </span>
-                  <span className={`text-[11px] font-bold ${s.text}`}>
-                    {Math.round(p)}%
-                  </span>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {/* バーの真下に、区分ごとの金額を等幅で(狭い区分も切れない) */}
-      <div className="mt-2.5 grid grid-cols-4 gap-1">
-        {segments.map((s) => (
-          <div key={s.label} className="text-center">
-            <div className="flex items-center justify-center gap-1 text-[11px] leading-tight text-ink-500">
-              <span
-                className={`inline-block h-2 w-2 shrink-0 rounded ${s.color}`}
-                aria-hidden
-              />
-              <span className="truncate">{s.label}</span>
-            </div>
-            <div className="tabular whitespace-nowrap text-sm font-bold text-ink-900">
-              {man(s.value)}万
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -1031,41 +967,12 @@ export function ResultPanel({
           {expensesAssumed && !editable && '(経費は売上の20%で仮置き中)'}
         </p>
 
-        {/* 売上の分かれ方 */}
+        {/* 売上の分かれ方(お金の流れ図) */}
         <div className="mt-5 scroll-mt-14" id="sec-breakdown">
           <p className="mb-2 text-sm font-bold text-ink-900">
             売上{man(r.input.revenue)}万円は、こう分かれます
           </p>
-          <BreakdownBar
-            segments={[
-              {
-                label: '経費',
-                value: r.input.expenses,
-                color: 'bg-cream-300',
-                text: 'text-ink-700',
-              },
-              {
-                label: '税金',
-                value: r.taxTotal,
-                color: 'bg-amber-400',
-                text: 'text-amber-900',
-              },
-              {
-                // 税金(amber)と色相が近いと色覚によっては区別できないため、
-                // 保険・年金は青系に(iDeCoパネルのskyと同系統)
-                label: '保険・年金',
-                value: r.socialInsuranceTotal,
-                color: 'bg-sky-500',
-                text: 'text-white',
-              },
-              {
-                label: '手取り',
-                value: r.takeHome,
-                color: 'bg-emerald-600',
-                text: 'text-white',
-              },
-            ]}
-          />
+          <SankeyDiagram result={r} />
           <p className="mt-2.5 text-xs leading-relaxed text-ink-500">
             税金と保険をあわせて{' '}
             <span className="tabular font-semibold text-ink-900">
