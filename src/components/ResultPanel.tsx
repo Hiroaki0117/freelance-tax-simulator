@@ -5,12 +5,14 @@ import { createPortal } from 'react-dom';
 import type { TaxResult } from '@/lib/tax/types';
 import { calculateTax } from '@/lib/tax/calculator';
 import { solveRevenueForTakeHome } from '@/lib/tax/reverse';
+import { buildTaxDeadlines, buildTaxIcs } from '@/lib/ics';
 import { CONSUMPTION_LABELS, formatPercent, formatYen } from '@/lib/tax/format';
 import {
   IDECO_MONTHLY_MAX,
   IDECO_MONTHLY_MIN,
   INCOME_TAX_BRACKETS,
   NATIONAL_PENSION_MONTHLY,
+  TAX_YEAR,
 } from '@/lib/tax/constants';
 import { DISCLAIMER_SHORT } from '@/lib/disclaimer';
 import { ShareActions } from './ShareActions';
@@ -952,6 +954,59 @@ function PaymentTimeline({ result }: { result: TaxResult }) {
   );
 }
 
+/** DTSTAMP(生成時刻)を YYYYMMDDTHHMMSSZ で作る */
+function icsDtstamp(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}` +
+    `T${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}Z`
+  );
+}
+
+/**
+ * 納税予定を .ics でダウンロード(UX案 4-5)。
+ * 確定申告・住民税・事業税の納付期限(+3日前リマインダ)を全日イベントで書き出す。
+ * サーバー不要・クライアントで生成。納付がない条件では何も出さない。
+ */
+function IcsDownloadButton({ result }: { result: TaxResult }) {
+  const payYear = TAX_YEAR + 1;
+  const deadlines = buildTaxDeadlines(result, payYear);
+  if (deadlines.length === 0) return null;
+
+  function download() {
+    const ics = buildTaxIcs(deadlines, {
+      dtstamp: icsDtstamp(),
+      calendarName: `納税予定 ${payYear}(概算)`,
+    });
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tax-calendar-${payYear}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="mt-3 border-t border-cream-200 pt-3">
+      <button
+        type="button"
+        onClick={download}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-emerald-500 bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50"
+      >
+        📅 納税予定をスマホのカレンダーに入れる
+      </button>
+      <p className="mt-1.5 text-center text-[11px] leading-relaxed text-ink-400">
+        確定申告・住民税などの納付日{deadlines.length}件を Google カレンダー /
+        iPhone に登録(3日前にお知らせ)。金額・日付は概算です。
+      </p>
+    </div>
+  );
+}
+
 export function ResultPanel({
   result,
   expensesAssumed,
@@ -1345,6 +1400,7 @@ export function ResultPanel({
             今年稼いだ分の税・保険は、精算(支払い)が翌年から始まります。年金だけは今年から毎月。
           </p>
           <PaymentTimeline result={r} />
+          <IcsDownloadButton result={r} />
         </div>
 
         {/* ふるさと納税(ここから節税ゾーン) */}
