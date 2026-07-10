@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { TaxResult } from '@/lib/tax/types';
 import { calculateTax } from '@/lib/tax/calculator';
+import { solveRevenueForTakeHome } from '@/lib/tax/reverse';
 import { CONSUMPTION_LABELS, formatPercent, formatYen } from '@/lib/tax/format';
 import {
   IDECO_MONTHLY_MAX,
@@ -339,6 +340,191 @@ function InlineField({
           ＋
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * 目標から逆算(UX案 1-2):ほしい手取り → 必要な売上。
+ * takeHome は売上に対して単調増加なので二分探索で逆算できる(solveRevenueForTakeHome)。
+ * 「この売上で試算する」で本体の売上に適用し、結果ぜんぶをその前提で更新する。
+ */
+function ReverseCalcPanel({
+  result,
+  expensesAssumed,
+  onApply,
+}: {
+  result: TaxResult;
+  expensesAssumed: boolean;
+  onApply: (revenueYen: number) => void;
+}) {
+  const r = result;
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<'monthly' | 'annual'>('monthly');
+  // 目標は円で保持(年額換算)。初期値はいまの手取りを1万円単位に丸めた額を種に
+  const [targetAnnual, setTargetAnnual] = useState(() =>
+    Math.max(0, Math.round(r.takeHome / 10000) * 10000)
+  );
+
+  const solution = useMemo(
+    () => solveRevenueForTakeHome(targetAnnual, r.input, expensesAssumed),
+    [targetAnnual, r.input, expensesAssumed]
+  );
+
+  // 入力・表示は mode の単位で(月額なら年額÷12)
+  const targetInMode =
+    mode === 'monthly' ? Math.round(targetAnnual / 12) : targetAnnual;
+  const setTargetInMode = (yen: number) =>
+    setTargetAnnual(mode === 'monthly' ? Math.max(0, yen) * 12 : Math.max(0, yen));
+
+  const requiredRevenue = solution.revenue;
+  const monthlyRevenue = Math.round(requiredRevenue / 12);
+  const diff = requiredRevenue - r.input.revenue;
+  const presets =
+    mode === 'monthly'
+      ? [300_000, 400_000, 500_000]
+      : [4_000_000, 5_000_000, 6_000_000];
+
+  return (
+    <div className="mb-4 rounded-2xl border-2 border-dashed border-sky-300 bg-sky-50/60">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 p-4 text-left"
+      >
+        <span>
+          <span className="text-sm font-bold text-ink-900">
+            🎯 目標から逆算する
+          </span>
+          <span className="mt-0.5 block text-xs text-ink-500">
+            ほしい手取りから、必要な売上を出す
+          </span>
+        </span>
+        <span
+          className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] leading-none transition-transform ${
+            open ? 'rotate-180 bg-sky-600 text-white' : 'bg-sky-100 text-sky-700'
+          }`}
+          aria-hidden
+        >
+          ▼
+        </span>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4">
+          {/* 目標の入れ方:月額 or 年間 */}
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs font-bold text-ink-700">ほしい手取り</span>
+            <div
+              className="flex shrink-0 gap-1 rounded-full bg-white p-1"
+              role="group"
+              aria-label="目標の入れ方"
+            >
+              {(
+                [
+                  ['monthly', '月額'],
+                  ['annual', '年間'],
+                ] as const
+              ).map(([m, t]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  aria-pressed={mode === m}
+                  className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
+                    mode === m
+                      ? 'bg-sky-600 text-white shadow-sm'
+                      : 'text-ink-500 hover:text-ink-600'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-2">
+            <InlineField
+              label={mode === 'monthly' ? '月あたり' : '年あたり'}
+              valueYen={targetInMode}
+              onChangeYen={setTargetInMode}
+              stepYen={mode === 'monthly' ? 10_000 : 100_000}
+            />
+          </div>
+
+          <div className="mt-2 flex flex-wrap gap-2">
+            {presets.map((p) => {
+              const active = targetInMode === p;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setTargetInMode(p)}
+                  className={`rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors ${
+                    active
+                      ? 'border-sky-600 bg-sky-600/10 text-sky-700'
+                      : 'border-cream-300 bg-white text-ink-600 hover:border-sky-400 hover:text-sky-700'
+                  }`}
+                >
+                  {mode === 'monthly' ? `月${p / 10000}万` : `${p / 10000}万`}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 逆算の答え */}
+          <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+            {solution.reachable ? (
+              <>
+                <p className="text-xs font-medium text-ink-500">
+                  {mode === 'monthly'
+                    ? `月${man(targetInMode)}万円の手取りに必要な売上`
+                    : `年${man(targetInMode)}万円の手取りに必要な売上`}
+                </p>
+                <p className="tabular mt-1 flex items-baseline gap-1.5">
+                  <span className="text-4xl font-extrabold leading-none text-sky-700">
+                    約{man(requiredRevenue)}
+                  </span>
+                  <span className="text-base font-bold text-sky-700">万円</span>
+                  <span className="text-xs font-medium text-ink-400">/年</span>
+                </p>
+                <p className="tabular mt-1.5 text-xs text-ink-500">
+                  月あたり約{man(monthlyRevenue)}万円 ・ この売上での手取り 約
+                  {man(solution.takeHome)}万円
+                </p>
+                <p className="mt-1 text-xs text-ink-400">
+                  {expensesAssumed
+                    ? '経費は売上の20%で連動して計算(仮置き)'
+                    : `経費は ${man(solution.expenses)}万円のまま・他の前提も現状どおり`}
+                </p>
+
+                {Math.abs(diff) >= 10000 && (
+                  <p className="tabular mt-2 text-xs font-semibold text-ink-600">
+                    いまの売上({man(r.input.revenue)}万円)より
+                    <span className={diff > 0 ? 'text-amber-700' : 'text-emerald-700'}>
+                      {diff > 0 ? ' +' : ' −'}
+                      {man(Math.abs(diff))}万円
+                    </span>
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => onApply(requiredRevenue)}
+                  className="mt-3 w-full rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-sky-700"
+                >
+                  この売上で試算する →
+                </button>
+              </>
+            ) : (
+              <p className="text-sm leading-relaxed text-ink-600">
+                その手取りは、現実的な売上では届かないみたいです。目標を下げてみてください。
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -878,6 +1064,12 @@ export function ResultPanel({
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  // 逆算パネルの「この売上で試算する」:売上を適用し、更新された主役まで戻る
+  function applyRevenue(yen: number) {
+    onRevenueChange?.(yen);
+    heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   return (
     <div className="overflow-hidden rounded-3xl bg-white shadow-warm">
       {/* スティッキー手取りバー(長い結果のどこにいても主役が見える)。
@@ -1046,6 +1238,15 @@ export function ResultPanel({
               </p>
             )}
           </div>
+        )}
+
+        {/* 目標から逆算(ほしい手取り → 必要な売上)。探索用ミニ入力と対になる「次の一手」ツール */}
+        {editable && (
+          <ReverseCalcPanel
+            result={r}
+            expensesAssumed={Boolean(expensesAssumed)}
+            onApply={applyRevenue}
+          />
         )}
 
         <p className="text-xs leading-relaxed text-ink-500">
